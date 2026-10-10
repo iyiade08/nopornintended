@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: nopornintended-backend
+    runtime: python
+    plan: free
+    rootDir: nopornintended-backend
+    buildCommand: bash build.sh
+    preDeployCommand: python manage.py migrate
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.14.3"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "nopornintended-backend.onrender.com"
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_CONN_MAX_AGE
+        value: "0"
+      - key: DATABASE_DISABLE_SERVER_SIDE_CURSORS
+        value: "True"
+      - key: USE_SUPABASE_STORAGE
+        value: "True"
+      - key: SUPABASE_STORAGE_DRIVER
+        value: "rest"
+      - key: SUPABASE_STORAGE_BUCKET
+        value: "media"
+      - key: SUPABASE_URL
+        value: "https://bxxsschlasvlqufqdpqj.supabase.co"
+      - key: SUPABASE_STORAGE_PUBLIC_URL
+        value: "https://bxxsschlasvlqufqdpqj.supabase.co/storage/v1/object/public/media"
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
