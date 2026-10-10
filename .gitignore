@@ -1,0 +1,21 @@
+# env files (secrets)
+.env
+.env.*
+!.env.example
+
+# python / django
+__pycache__/
+*.pyc
+venv/
+.venv/
+db.sqlite3
+staticfiles/
+
+# node / vite
+node_modules/
+dist/
+
+# editor / os
+.vscode/
+.DS_Store
+Thumbs.db
