@@ -2,6 +2,24 @@ import { useRef, useState } from "react";
 import { FaPlay } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
+// 1 -> "1 view", 1200 -> "1.2K views", 3400000 -> "3.4M views"
+const formatViews = (value) => {
+  const count = Number(value) || 0;
+  const compact = new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(count);
+  return `${compact} ${count === 1 ? "view" : "views"}`;
+};
+
+// Small row under the title: duration (if we have one) on the left, views on the right
+const VideoMeta = ({ video }) => (
+  <div className="flex justify-between text-xs text-slate-400">
+    {video.duration ? <span>{video.duration}</span> : null}
+    <span className="ml-auto">{formatViews(video.views)}</span>
+  </div>
+);
+
 // detail = true  -> downloads page: plays the video with native controls
 // detail = false -> grid: thumbnail is a link to /downloads/:id
 const VideoCard = ({ video, detail = false }) => {
@@ -63,10 +81,7 @@ const VideoCard = ({ video, detail = false }) => {
           <p className="font-poppins text-base md:text-xl font-medium capitalize text-white">
             {video.label}
           </p>
-          <div className="flex justify-between text-xs text-slate-400">
-            <span>12:34</span>
-            <span>1.2M views</span>
-          </div>
+          <VideoMeta video={video} />
         </div>
       ) : (
         <Link to={`/downloads/${video.id}`}>
@@ -74,10 +89,7 @@ const VideoCard = ({ video, detail = false }) => {
             <p className="font-poppins text-sm md:text-base font-medium capitalize text-white line-clamp-2">
               {video.label}
             </p>
-            <div className="flex justify-between text-xs text-slate-400">
-              <span>12:34</span>
-              <span>1.2M views</span>
-            </div>
+            <VideoMeta video={video} />
           </div>
         </Link>
       )}

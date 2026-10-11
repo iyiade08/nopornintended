@@ -64,14 +64,24 @@ const DownloadsPage = () => {
     };
   }, [id]);
 
-  // Count a view once the video has actually loaded
+  // Count a view once the video has actually loaded, then show the new total
   useEffect(() => {
     if (!video || trackedIdRef.current === video.id) return;
     trackedIdRef.current = video.id;
 
-    trackView(video.id).catch((err) => {
-      console.error("Could not track view", err);
-    });
+    trackView(video.id)
+      .then((data) => {
+        if (data && data.views != null) {
+          setVideo((prev) =>
+            prev && prev.id === video.id
+              ? { ...prev, views: data.views }
+              : prev,
+          );
+        }
+      })
+      .catch((err) => {
+        console.error("Could not track view", err);
+      });
   }, [video]);
 
   // Tab title = video name

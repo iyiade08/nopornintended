@@ -1,4 +1,4 @@
-import logo from "../assets/nav-logo/nopornintended-icon.svg";
+import logo from "../assets/nav-logo/nopornintended-icon-transparent.png";
 import { useState, useEffect } from "react";
 import { FaBars, FaTimes, FaSearch } from "react-icons/fa";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -62,17 +62,17 @@ const Navbar = () => {
     >
       <nav className="flex w-full items-center justify-between gap-4 px-2 py-2">
         {/* logo */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center">
           <Link to="/">
             <img
               src={logo}
               alt="nopornintended logo"
-              className="max-w-[3.5rem] lg:max-w-[6vw] w-full"
+              className="max-w-[3.5rem] lg:max-w-[4vw] md:max-w-[5vw] w-full"
             />
           </Link>
           <Link to="/">
-            <p className="font-anton text-3xl md:text-5xl tracking-wide bg-gradient-to-br from-[#FD3E81] via-[#CB4CB5] to-[#895CF5] bg-clip-text text-transparent capitalize">
-              nopornintended
+            <p className="font-poppins text-3xl md:text-5xl tracking-tight bg-gradient-to-br from-[#FD3E81] via-[#CB4CB5] to-[#895CF5] bg-clip-text text-transparent pt-3 ">
+              n<span className="capitalize">opornintended</span>
             </p>
           </Link>
         </div>
