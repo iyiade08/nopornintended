@@ -16,14 +16,14 @@
 1. Contact and content-report forms connected to existing Django endpoints, including per-field errors and a prefilled video report.
 2. Published Terms and Privacy pages from the backend CMS.
 3. Sorting by newest, views, downloads, and title; category and duration filters that work together with search.
-4. Backend pagination: 24 videos per page, with the original unpaginated API response preserved for older callers.
+4. Backend pagination: 10 videos per page, with left/right arrows, clickable page circles, and a purple current-page indicator. The original unpaginated API response is preserved for older callers.
 5. Saved videos stored on the current device, with a dedicated collection page.
 6. Thumbs-up/down counts and changeable browser votes under video cards and the player, persisted in Django.
 7. Comments below the player, including validation, pagination, rate limits, and Django Admin approval.
 
 ## Verification
 
-- Production build, ESLint, formatting check, and eighteen frontend tests, including paused-frame loading, cancellation, errors, timeouts, and the preview queue.
+- Production build, ESLint, formatting check, and twenty-three frontend tests, including page windows, paused-frame loading, cancellation, errors, timeouts, and the preview queue.
 - Twenty-eight backend tests in isolated SQLite, including vote idempotency, switching/removal, comment moderation, hidden-content protection, combined filters, duration boundaries/backfill, stable pagination, and query counts.
 - Browser checks at 320, 390, 768, 1024, and 1440 pixels; mobile search, filters, pagination, voting, saved videos, comment submission, contact, reports, policy rendering, and age-dialog focus trapping.
 - npm audit: zero reported vulnerabilities after removing the unused styling dependency tree.

@@ -8,6 +8,7 @@ import { getVideos, searchVideos } from "../api/api";
 import useResource from "../hooks/useResource";
 import usePageTitle from "../hooks/usePageTitle";
 import { useSavedVideos } from "../lib/libraryStore";
+import { VIDEO_PAGE_SIZE } from "../lib/pagination";
 
 export default function VideoListsPage({ mode = "library" }) {
   const [params, setParams] = useSearchParams();
@@ -41,6 +42,7 @@ export default function VideoListsPage({ mode = "library" }) {
         ordering,
         duration,
         page,
+        page_size: VIDEO_PAGE_SIZE,
         ...(isSaved ? { ids: savedIds } : {}),
       };
       return isSearch

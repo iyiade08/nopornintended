@@ -44,10 +44,17 @@ class VideoAPITests(TestCase):
         first = self.client.get("/api/videos/", {"page": 1}).data
         second = self.client.get("/api/videos/", {"page": 2}).data
         self.assertEqual(first["count"], 51)
-        self.assertEqual(len(first["results"]), 24)
+        self.assertEqual(len(first["results"]), 10)
+        self.assertEqual(len(second["results"]), 10)
         self.assertIsNotNone(first["next"])
         self.assertIsNotNone(second["previous"])
         self.assertFalse({item["id"] for item in first["results"]} & {item["id"] for item in second["results"]})
+        last = self.client.get("/api/videos/", {"page": 6}).data
+        self.assertEqual(len(last["results"]), 1)
+        self.assertIsNone(last["next"])
+        self.assertIsNotNone(last["previous"])
+        explicit = self.client.get("/api/videos/", {"page": 2, "page_size": 10}).data
+        self.assertEqual(len(explicit["results"]), 10)
         self.assertEqual(len(self.client.get("/api/videos/", {"page_size": 10000}).data["results"]), 48)
 
     def test_duration_boundaries_exclude_unknowns(self):

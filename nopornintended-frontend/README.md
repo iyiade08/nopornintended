@@ -32,6 +32,7 @@ python manage.py test --settings=config.test_settings
 ## Features
 
 - Responsive library, category navigation, mobile search, sorting, duration filters, and pagination.
+- Library, search, and saved results show 10 videos per page. Left/right arrows and clickable numbered circles navigate between pages; the current page is purple. Compact page windows keep the controls usable on phones.
 - Uploaded thumbnails take priority. Missing or broken images fall back to a paused video frame automatically, loaded near the viewport with at most three preview requests in progress. These previews do not play audio or count as views. Unplayable files retain the unavailable-preview state.
 - Device-local saved videos, up to 500. Clearing this browser's storage removes this collection; no account or cross-device sync is included.
 - One changeable thumbs-up/down reaction per anonymous browser identity and video. Counts are stored by the backend. This is not verified-person voting; resetting browser storage creates a new identity.
