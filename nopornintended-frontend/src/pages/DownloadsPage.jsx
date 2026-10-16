@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   FaDownload,
@@ -7,226 +7,299 @@ import {
   FaCheck,
   FaFlag,
 } from "react-icons/fa";
-import VideoCard from "../component/VideoCard";
 import RelatedVideos from "../component/RelatedVideos";
+import VideoFeedback from "../component/VideoFeedback";
+import Comments from "../component/Comments";
 import Spinner from "../component/Spinner";
-import AnimatedBorderButton from "../common/AnimatedBorderButton";
+import ContentState from "../component/ContentState";
 import { getVideo, trackView, trackDownload } from "../api/api";
+import { buildFileName, formatCount, mediaUrl } from "../lib/media";
+import useResource from "../hooks/useResource";
+import usePageTitle from "../hooks/usePageTitle";
 
-// Clean filename from the label, keeping the original extension
-const buildFileName = (video) => {
-  const extension = video.path.split("?")[0].split(".").pop() || "mp4";
-  const base = (video.label || `video-${video.id}`)
-    .toLowerCase()
-    .replace(/['’]/g, "") // drop apostrophes so "bryan's" -> "bryans"
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return `${base || `video-${video.id}`}.${extension}`;
-};
-
-const DownloadsPage = () => {
-  const { id } = useParams();
-  const [video, setVideo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+function VideoDetails({ id }) {
+  const loader = useCallback((signal) => getVideo(id, { signal }), [id]);
+  const resource = useResource(loader, `video:${id}`);
+  const video = resource.data;
+  const [views, setViews] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
-
-  // Remembers which video we last counted, so one visit = one view
-  const trackedIdRef = useRef(null);
-
-  // Fetch the main video whenever the id in the URL changes
+  const [directUrl, setDirectUrl] = useState("");
+  const [playError, setPlayError] = useState(false);
+  const [playAttempt, setPlayAttempt] = useState(0);
+  const tracked = useRef(false);
+  const active = useRef(true);
+  const downloadRef = useRef(null);
+  const copyTimer = useRef(null);
+  usePageTitle(video?.label || video?.title || "Video");
   useEffect(() => {
-    let ignore = false;
-
-    const loadVideo = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        setVideo(null);
-        setCopied(false);
-        setDownloadError("");
-        const data = await getVideo(id);
-        if (!ignore) setVideo(data);
-      } catch (err) {
-        if (!ignore) setError(err.message || "Something went wrong");
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-
-    loadVideo();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-
+    active.current = true;
     return () => {
-      ignore = true;
+      active.current = false;
+      downloadRef.current?.abort();
+      clearTimeout(copyTimer.current);
     };
-  }, [id]);
-
-  // Count a view once the video has actually loaded, then show the new total
-  useEffect(() => {
-    if (!video || trackedIdRef.current === video.id) return;
-    trackedIdRef.current = video.id;
-
+  }, []);
+  const onPlay = () => {
+    if (tracked.current || !video) return;
+    tracked.current = true;
     trackView(video.id)
       .then((data) => {
-        if (data && data.views != null) {
-          setVideo((prev) =>
-            prev && prev.id === video.id
-              ? { ...prev, views: data.views }
-              : prev,
-          );
-        }
+        if (active.current && data?.views != null) setViews(data.views);
       })
-      .catch((err) => {
-        console.error("Could not track view", err);
+      .catch(() => {
+        /* Playback continues when analytics is unavailable. */
       });
-  }, [video]);
-
-  // Tab title = video name
-  useEffect(() => {
-    if (video) document.title = video.title || video.label;
-    return () => {
-      document.title = "nopornintended";
-    };
-  }, [video]);
-
-  // ---- all hooks are above this line; early returns only below ----
-
-  const handleCopyLink = async () => {
+  };
+  const copy = async () => {
+    setCopyError(false);
     try {
+      if (!navigator.clipboard?.writeText)
+        throw new Error("Clipboard unavailable");
       await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Could not copy link", err);
+      if (active.current) {
+        setCopied(true);
+        clearTimeout(copyTimer.current);
+        copyTimer.current = setTimeout(() => setCopied(false), 2500);
+      }
+    } catch {
+      if (active.current) setCopyError(true);
     }
   };
-
-  const handleDownload = async () => {
-    if (downloading || !video) return;
-
+  const download = async () => {
+    if (downloadRef.current || !video) return;
+    const controller = new AbortController();
+    downloadRef.current = controller;
     setDownloading(true);
     setDownloadError("");
-
+    setDirectUrl("");
+    let url = mediaUrl(video.path);
     try {
-      // 1. Count the download and get the file URL from the backend
-      const data = await trackDownload(video.id);
-      const fileUrl = data.download_url || video.path;
-
       try {
-        // 2. Fetch the file as a blob so the browser saves it (works cross-origin)
-        const res = await fetch(fileUrl, { mode: "cors", cache: "no-store" });
-        if (!res.ok) throw new Error(`File request failed (${res.status})`);
-
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = buildFileName(video);
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(blobUrl);
-      } catch (blobErr) {
-        // 3. Fallback: let the browser open the file itself
-        console.error("Blob download failed, opening file instead", blobErr);
-        window.open(fileUrl, "_blank");
+        const data = await trackDownload(video.id, {
+          signal: controller.signal,
+        });
+        url = mediaUrl(data.download_url) || url;
+      } catch {
+        /* A metrics failure must not prevent access to the file. */
       }
-    } catch (err) {
-      console.error("Download failed", err);
-      setDownloadError("Download failed. Please try again.");
+      if (controller.signal.aborted) return;
+      if (!url) throw new Error("File unavailable");
+      setDirectUrl(url);
+      const response = await fetch(url, {
+        mode: "cors",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("File unavailable");
+      const blob = await response.blob();
+      if (!active.current) return;
+      const blobUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = buildFileName(video);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      setDirectUrl("");
+    } catch {
+      if (!controller.signal.aborted && active.current)
+        setDownloadError(
+          "The download couldn't start. Try again, or open the video file directly.",
+        );
     } finally {
-      setDownloading(false);
+      downloadRef.current = null;
+      if (active.current) setDownloading(false);
     }
   };
-
-  if (loading) {
+  if (resource.loading)
     return (
-      <div className="pt-28 md:pt-44">
-        <Spinner loading={loading} />
-      </div>
+      <section className="detail-container page-section">
+        <Spinner label="Loading video…" />
+      </section>
     );
-  }
-
-  if (error || !video) {
+  if (resource.error || !video)
     return (
-      <div className="pt-28 md:pt-44 text-center font-poppins text-white/90">
-        <p className="mb-2">Couldn't load this video.</p>
-        {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
-        <Link to="/" className="underline">
-          Back to home
-        </Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pt-28 md:pt-44 pb-16">
-      <div className="genLayout mx-auto px-4">
-        {/* Back link */}
-        <Link
-          to="/"
-          className="mb-6 inline-flex items-center gap-2 font-poppins text-sm text-white/70 transition-colors hover:text-[#CB4CB5]"
+      <section className="detail-container page-section">
+        <ContentState
+          error
+          title={
+            resource.error?.status === 404
+              ? "Video unavailable"
+              : "We couldn't load this video"
+          }
+          description="It may have been removed, or the connection may be temporarily unavailable."
         >
-          <FaArrowLeft className="h-3 w-3" /> Back to videos
-        </Link>
-
-        {/* Main video + actions */}
-        <div className="flex flex-col items-center justify-center gap-4 font-poppins text-white/90">
-          <div className="w-full max-w-3xl">
-            <VideoCard video={video} detail />
-          </div>
-
-          {video.description && (
-            <p className="w-full max-w-3xl text-sm text-white/70 md:text-base">
-              {video.description}
-            </p>
-          )}
-
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <AnimatedBorderButton
-              as="button"
-              onClick={handleDownload}
-              disabled={downloading}
-            >
-              <FaDownload className="h-5 w-5" />
-              {downloading ? "Downloading..." : "Download Video"}
-            </AnimatedBorderButton>
-
-            <AnimatedBorderButton as="button" onClick={handleCopyLink}>
-              {copied ? (
-                <>
-                  <FaCheck className="h-5 w-5" /> Copied!
-                </>
-              ) : (
-                <>
-                  <FaLink className="h-5 w-5" /> Share
-                </>
-              )}
-            </AnimatedBorderButton>
-          </div>
-
-          {downloadError && (
-            <p className="text-sm text-red-400">{downloadError}</p>
-          )}
-
-          {/* Report link: opens the report form with this video pre-filled */}
-          <Link
-            to={`/report?video=${video.id}`}
-            className="inline-flex items-center gap-2 text-sm text-white/50 transition-colors hover:text-[#FD3E81]"
-          >
-            <FaFlag className="h-3 w-3" /> Report this video
+          <button className="button" type="button" onClick={resource.retry}>
+            Try again
+          </button>
+          <Link className="text-link" to="/">
+            Back to the library
           </Link>
-        </div>
-
-        {/* Related videos */}
+        </ContentState>
+      </section>
+    );
+  const path = mediaUrl(video.path);
+  const viewCount = views ?? video.views ?? 0;
+  return (
+    <div className="page-section">
+      <div className="detail-container">
+        <Link to="/" className="text-link back-link">
+          <FaArrowLeft size={12} aria-hidden="true" />
+          Back to the library
+        </Link>
+        <article className="player-shell">
+          <div className="player-media">
+            {path && (
+              <video
+                key={playAttempt}
+                src={path}
+                poster={mediaUrl(video.thumbnail) || undefined}
+                playsInline
+                controls
+                preload="metadata"
+                aria-label={video.label || video.title}
+                onPlay={onPlay}
+                onError={() => setPlayError(true)}
+              />
+            )}
+            {(!path || playError) && (
+              <div className="player-error" role="alert">
+                <p>This video couldn't be played.</p>
+                {path && (
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => {
+                      setPlayError(false);
+                      setPlayAttempt((value) => value + 1);
+                    }}
+                  >
+                    Retry playback
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="player-info">
+            <h1 className="player-title">
+              {video.label || video.title || "Untitled video"}
+            </h1>
+            <div className="video-meta">
+              <span>
+                {formatCount(viewCount)}{" "}
+                {Number(viewCount) === 1 ? "view" : "views"}
+              </span>
+              {video.duration && <span>{video.duration}</span>}
+              {video.category && (
+                <Link
+                  className="brand-accent"
+                  to={`/?category=${encodeURIComponent(video.category.slug)}`}
+                >
+                  {video.category.name}
+                </Link>
+              )}
+            </div>
+            {video.description && (
+              <p className="detail-description">{video.description}</p>
+            )}
+            <div className="detail-toolbar">
+              <VideoFeedback video={video} />
+              <button
+                className="button"
+                type="button"
+                onClick={download}
+                disabled={downloading || !path}
+              >
+                <FaDownload size={13} aria-hidden="true" />
+                {downloading ? "Downloading…" : "Download"}
+              </button>
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={copy}
+              >
+                {copied ? (
+                  <FaCheck aria-hidden="true" />
+                ) : (
+                  <FaLink aria-hidden="true" />
+                )}
+                {copied ? "Link copied" : "Copy link"}
+              </button>
+            </div>
+            <div aria-live="polite">
+              {copied && (
+                <p className="action-message">
+                  The video link has been copied.
+                </p>
+              )}
+            </div>
+            {copyError && (
+              <div className="action-message" role="status">
+                <p>Copy the video link below:</p>
+                <input
+                  className="copy-field"
+                  aria-label="Video link"
+                  readOnly
+                  value={window.location.href}
+                  onFocus={(event) => event.target.select()}
+                />
+              </div>
+            )}
+            {downloading && (
+              <p className="action-message" role="status">
+                Preparing the file. Keep this page open until your download
+                starts.
+                {directUrl && (
+                  <>
+                    {" "}
+                    Taking too long?{" "}
+                    <button
+                      className="text-link"
+                      type="button"
+                      onClick={() => downloadRef.current?.abort()}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </p>
+            )}
+            {downloadError && (
+              <div className="action-message" role="alert">
+                <p>{downloadError}</p>
+                {directUrl && (
+                  <a
+                    className="text-link"
+                    href={directUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open video file
+                  </a>
+                )}
+              </div>
+            )}
+            <Link
+              className="text-link"
+              to={`/report?video=${encodeURIComponent(video.id)}`}
+            >
+              <FaFlag aria-hidden="true" size={11} />
+              Report this video
+            </Link>
+          </div>
+        </article>
+        <Comments videoId={video.id} />
+      </div>
+      <div className="container">
         <RelatedVideos videoId={id} />
       </div>
     </div>
   );
-};
-
-export default DownloadsPage;
+}
+export default function DownloadsPage() {
+  const { id } = useParams();
+  return <VideoDetails key={id} id={id} />;
+}

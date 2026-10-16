@@ -1,43 +1,37 @@
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import VideoCard from "./VideoCard";
 import { getRelatedVideos } from "../api/api";
-
-const RelatedVideos = ({ videoId, title = "More videos" }) => {
-  const [videos, setVideos] = useState([]);
-
-  useEffect(() => {
-    let ignore = false;
-
-    const fetchrelatedVideos = async () => {
-      try {
-        setVideos([]);
-        const data = await getRelatedVideos(videoId);
-        if (!ignore) setVideos(data);
-      } catch (err) {
-        console.error("couldn't fetch related videos", err);
-        if (!ignore) setVideos([]);
-      }
-    };
-    fetchrelatedVideos();
-    return () => {
-      ignore = true;
-    };
-  }, [videoId]);
-
-  if (videos.length === 0) return null;
-
-  return (
-    <div className="mt-16">
-      <h2 className="mb-4 font-poppins text-xl font-semibold text-white/70 md:text-2xl">
-        {title}
-      </h2>
-      <div className="grid grid-cols-2 md:grid-cols-4">
-        {videos.map((v) => (
-          <VideoCard key={v.id} video={v} />
-        ))}
-      </div>
-    </div>
+import useResource from "../hooks/useResource";
+import Spinner from "./Spinner";
+export default function RelatedVideos({ videoId }) {
+  const loader = useCallback(
+    (signal) => getRelatedVideos(videoId, { signal }),
+    [videoId],
   );
-};
-
-export default RelatedVideos;
+  const resource = useResource(loader, `related:${videoId}`);
+  if (!resource.loading && !resource.error && !resource.data?.results.length)
+    return null;
+  return (
+    <section className="related-section" aria-labelledby="related-title">
+      <h2 className="section-heading" id="related-title">
+        More to explore
+      </h2>
+      {resource.loading ? (
+        <Spinner label="Loading related videos…" />
+      ) : resource.error ? (
+        <div className="action-message">
+          <p>Related videos are temporarily unavailable.</p>
+          <button type="button" className="text-link" onClick={resource.retry}>
+            Try again
+          </button>
+        </div>
+      ) : (
+        <div className="video-grid">
+          {resource.data.results.map((video) => (
+            <VideoCard key={video.id} video={video} heading="h3" />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}

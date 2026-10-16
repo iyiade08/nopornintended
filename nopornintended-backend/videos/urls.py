@@ -8,6 +8,8 @@ from .views import (
     VideoListAPIView,
     VideoSearchAPIView,
     VideoViewAPIView,
+    VideoReactionAPIView,
+    VideoCommentListCreateAPIView,
 )
 
 urlpatterns = [
@@ -18,4 +20,6 @@ urlpatterns = [
     path("videos/<int:pk>/related/", RelatedVideosAPIView.as_view(), name="video-related"),
     path("videos/<int:pk>/view/", VideoViewAPIView.as_view(), name="video-view"),
     path("videos/<int:pk>/download/", VideoDownloadAPIView.as_view(), name="video-download"),
+    path("videos/<int:pk>/reaction/", VideoReactionAPIView.as_view(), name="video-reaction"),
+    path("videos/<int:pk>/comments/", VideoCommentListCreateAPIView.as_view(), name="video-comments"),
 ]

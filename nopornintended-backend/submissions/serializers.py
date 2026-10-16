@@ -7,6 +7,7 @@ from .models import ContactMessage, ContentReport
 
 
 class ContactMessageSerializer(serializers.ModelSerializer):
+    message = serializers.CharField(max_length=5000)
     class Meta:
         model = ContactMessage
         fields = ["id", "name", "email", "subject", "message", "created_at"]
@@ -14,6 +15,7 @@ class ContactMessageSerializer(serializers.ModelSerializer):
 
 
 class ContentReportSerializer(serializers.ModelSerializer):
+    details = serializers.CharField(min_length=10, max_length=5000)
     video = VideoListSerializer(read_only=True)
     video_id = serializers.PrimaryKeyRelatedField(
         source="video",

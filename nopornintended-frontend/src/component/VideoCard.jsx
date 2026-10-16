@@ -1,100 +1,61 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { FaPlay } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import VideoFeedback from "./VideoFeedback";
+import { formatCount, mediaUrl } from "../lib/media";
 
-// 1 -> "1 view", 1200 -> "1.2K views", 3400000 -> "3.4M views"
-const formatViews = (value) => {
-  const count = Number(value) || 0;
-  const compact = new Intl.NumberFormat("en", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(count);
-  return `${compact} ${count === 1 ? "view" : "views"}`;
-};
-
-// Small row under the title: duration (if we have one) on the left, views on the right
-const VideoMeta = ({ video }) => (
-  <div className="flex justify-between text-xs text-slate-400">
-    {video.duration ? <span>{video.duration}</span> : null}
-    <span className="ml-auto">{formatViews(video.views)}</span>
-  </div>
-);
-
-// detail = true  -> downloads page: plays the video with native controls
-// detail = false -> grid: thumbnail is a link to /downloads/:id
-const VideoCard = ({ video, detail = false }) => {
-  const videoRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  if (!video) return null;
-
-  const videoEl = (
-    <video
-      key={video.id}
-      ref={videoRef}
-      src={video.path}
-      playsInline
-      preload="metadata"
-      controls={detail}
-      autoPlay={detail}
-      onPlay={() => setIsPlaying(true)}
-      onPause={() => setIsPlaying(false)}
-      onEnded={() => setIsPlaying(false)}
-      className={`h-full w-full ${
-        detail
-          ? "object-contain"
-          : "object-cover transition-transform group-hover:scale-110 duration-700"
-      }`}
-    />
-  );
-
-  const playOverlay = (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/40">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#FD3E81] to-[#895CF5] text-white shadow-lg">
-        <FaPlay className="ml-1 h-4 w-4" />
-      </span>
-    </div>
-  );
-
+export default function VideoCard({ video, heading: Heading = "h2" }) {
+  const [failedThumbnail, setFailedThumbnail] = useState("");
+  const title = video.label || video.title || "Untitled video";
+  const thumbnail = mediaUrl(video.thumbnail);
+  const showThumbnail = thumbnail && failedThumbnail !== thumbnail;
+  const views = Math.max(0, Number(video.views) || 0);
   return (
-    <div
-      className={`group flex flex-col overflow-hidden rounded-xl bg-white/5 border border-white/10 shadow-xl transition-transform duration-300 ${
-        detail ? "w-full" : "hover:-translate-y-1"
-      }`}
-    >
-      {detail ? (
-        <div className="relative aspect-video w-full overflow-hidden bg-black">
-          {videoEl}
+    <article className="video-card">
+      <Link
+        to={`/downloads/${encodeURIComponent(video.id)}`}
+        className="card-link"
+        aria-label={`Watch ${title}`}
+      >
+        <div className="video-media">
+          {showThumbnail ? (
+            <>
+              <img
+                src={thumbnail}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={() => setFailedThumbnail(thumbnail)}
+              />
+              <span className="thumbnail-play" aria-hidden="true">
+                <span className="play-badge">
+                  <FaPlay size={13} />
+                </span>
+              </span>
+            </>
+          ) : (
+            <div className="media-placeholder" aria-hidden="true">
+              <span className="play-badge">
+                <FaPlay size={13} />
+              </span>
+              <span>Preview unavailable</span>
+            </div>
+          )}
+          {video.duration && (
+            <span className="duration-badge">{video.duration}</span>
+          )}
         </div>
-      ) : (
-        <Link
-          to={`/downloads/${video.id}`}
-          className="relative block aspect-video w-full cursor-pointer overflow-hidden bg-black"
-        >
-          {videoEl}
-          {!isPlaying && playOverlay}
-        </Link>
-      )}
-
-      {detail ? (
-        <div className="flex flex-col gap-2 p-4">
-          <p className="font-poppins text-base md:text-xl font-medium capitalize text-white">
-            {video.label}
-          </p>
-          <VideoMeta video={video} />
-        </div>
-      ) : (
-        <Link to={`/downloads/${video.id}`}>
-          <div className="flex flex-col gap-2 p-3">
-            <p className="font-poppins text-sm md:text-base font-medium capitalize text-white line-clamp-2">
-              {video.label}
-            </p>
-            <VideoMeta video={video} />
+        <div className="card-content">
+          <Heading className="card-title">{title}</Heading>
+          <div className="video-meta">
+            <span>
+              {formatCount(views)} {views === 1 ? "view" : "views"}
+            </span>
+            {video.category?.name && <span>{video.category.name}</span>}
           </div>
-        </Link>
-      )}
-    </div>
+        </div>
+      </Link>
+      <VideoFeedback video={video} />
+    </article>
   );
-};
-
-export default VideoCard;
+}

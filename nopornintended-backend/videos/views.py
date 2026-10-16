@@ -1,12 +1,16 @@
-from django.db.models import F, Q
+from django.db import transaction
+from django.db.models import Count, F, IntegerField, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce, Lower
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Video, VideoDownloadEvent, VideoViewEvent
-from .serializers import CategorySerializer, VideoDetailSerializer, VideoListSerializer
+from .models import Category, Video, VideoComment, VideoReaction, VideoDownloadEvent, VideoViewEvent
+from .pagination import CommentPagination, VideoPagination
+from .serializers import CategorySerializer, CommentSerializer, ReactionSerializer, VideoDetailSerializer, VideoListSerializer, VideoQuerySerializer
+from .throttles import CommentThrottle, ReactionThrottle
 
 
 def get_client_ip(request):
@@ -21,7 +25,14 @@ def get_user_agent(request):
 
 
 def published_videos():
-    return Video.objects.select_related("category").filter(is_published=True)
+    def count_for(model, **filters):
+        counts = model.objects.filter(video_id=OuterRef("pk"), **filters).order_by().values("video_id").annotate(total=Count("pk")).values("total")
+        return Coalesce(Subquery(counts, output_field=IntegerField()), 0)
+    return Video.objects.select_related("category").filter(is_published=True).annotate(
+        likes_count=count_for(VideoReaction, value=1),
+        dislikes_count=count_for(VideoReaction, value=-1),
+        comments_count=count_for(VideoComment, is_approved=True),
+    )
 
 
 class CategoryListAPIView(generics.ListAPIView):
@@ -35,13 +46,20 @@ class CategoryListAPIView(generics.ListAPIView):
 class VideoListAPIView(generics.ListAPIView):
     serializer_class = VideoListSerializer
     permission_classes = [AllowAny]
-    ordering_fields = ["created_at", "published_at", "views_count", "downloads_count", "title"]
-    ordering = ["-published_at", "-created_at"]
+    filter_backends = []
+    pagination_class = VideoPagination
+    require_search = False
 
     def get_queryset(self):
+        serializer = VideoQuerySerializer(data=self.request.query_params)
+        serializer.is_valid(raise_exception=True)
+        params = serializer.validated_data
         queryset = published_videos()
-        category = self.request.query_params.get("category")
-        query = self.request.query_params.get("q")
+        category = params.get("category")
+        query = params.get("q", "").strip()
+
+        if self.require_search and not query:
+            return queryset.none()
 
         if category:
             queryset = queryset.filter(category__slug=category)
@@ -51,22 +69,23 @@ class VideoListAPIView(generics.ListAPIView):
                 | Q(description__icontains=query)
                 | Q(category__name__icontains=query)
             )
-        return queryset
+        if params.get("ids"):
+            queryset = queryset.filter(pk__in=[int(value) for value in params["ids"].split(",")])
+        duration = params.get("duration")
+        if duration == "short":
+            queryset = queryset.filter(duration_seconds__lt=600)
+        elif duration == "medium":
+            queryset = queryset.filter(duration_seconds__gte=600, duration_seconds__lt=1800)
+        elif duration == "long":
+            queryset = queryset.filter(duration_seconds__gte=1800)
+        ordering = params["ordering"]
+        if ordering in ("title", "-title"):
+            ordering = Lower("title").desc() if ordering.startswith("-") else Lower("title").asc()
+        return queryset.order_by(ordering, "-pk")
 
 
-class VideoSearchAPIView(generics.ListAPIView):
-    serializer_class = VideoListSerializer
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        query = self.request.query_params.get("q", "").strip()
-        if not query:
-            return Video.objects.none()
-        return published_videos().filter(
-            Q(title__icontains=query)
-            | Q(description__icontains=query)
-            | Q(category__name__icontains=query)
-        )
+class VideoSearchAPIView(VideoListAPIView):
+    require_search = True
 
 
 class VideoDetailAPIView(generics.RetrieveAPIView):
@@ -142,3 +161,41 @@ class VideoDownloadAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class VideoReactionAPIView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ReactionThrottle]
+
+    def post(self, request, pk):
+        serializer = ReactionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        with transaction.atomic():
+            video = get_object_or_404(Video.objects.select_for_update(), pk=pk, is_published=True)
+            if data["value"] == 0:
+                VideoReaction.objects.filter(video=video, visitor_id=data["visitor_id"]).delete()
+            else:
+                VideoReaction.objects.update_or_create(video=video, visitor_id=data["visitor_id"], defaults={"value": data["value"]})
+            return Response({
+                "value": data["value"],
+                "likes_count": video.reactions.filter(value=1).count(),
+                "dislikes_count": video.reactions.filter(value=-1).count(),
+            })
+
+
+class VideoCommentListCreateAPIView(generics.ListCreateAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [CommentThrottle]
+    pagination_class = CommentPagination
+    filter_backends = []
+
+    def get_video(self):
+        return get_object_or_404(Video, pk=self.kwargs["pk"], is_published=True)
+
+    def get_queryset(self):
+        return VideoComment.objects.filter(video=self.get_video(), is_approved=True)
+
+    def perform_create(self, serializer):
+        serializer.save(video=self.get_video(), is_approved=False)

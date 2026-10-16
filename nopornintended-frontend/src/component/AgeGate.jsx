@@ -1,85 +1,85 @@
-import { useEffect, useState } from "react";
-
-const STORAGE_KEY = "age-confirmed";
-
-const AgeGate = () => {
-  const [isOpen, setIsOpen] = useState(() => {
+import { useEffect, useRef, useState } from "react";
+import Brand from "./Brand";
+import { Link } from "react-router-dom";
+export default function AgeGate({ children }) {
+  const [confirmed, setConfirmed] = useState(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY) !== "true";
+      return localStorage.getItem("age-confirmed") === "true";
     } catch {
-      return true;
+      return false;
     }
   });
-
-  // lock page scroll while the gate is showing
+  const enterRef = useRef(null);
   useEffect(() => {
-    document.body.style.overflow = isOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
-
-  const handleConfirm = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, "true");
-    } catch {
-      // storage blocked, gate will just show again next visit
-    }
-    setIsOpen(false);
-  };
-
-  const handleExit = () => {
-    window.location.href = "https://www.google.com";
-  };
-
-  if (!isOpen) return null;
-
+    if (!confirmed) enterRef.current?.focus();
+  }, [confirmed]);
+  if (confirmed) return children;
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-md"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="age-gate-title"
-    >
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#130F1E] p-8 text-center shadow-2xl">
-        <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FD3E81] to-[#895CF5] font-anton text-2xl text-white">
+    <main className="age-screen">
+      <div
+        className="age-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="age-gate-title"
+        aria-describedby="age-gate-description"
+        onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          const focusable =
+            event.currentTarget.querySelectorAll("button, a[href]");
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+          }
+          if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }}
+      >
+        <Brand linked={false} />
+        <span className="age-emblem" aria-hidden="true">
           18+
         </span>
-
-        <h2
-          id="age-gate-title"
-          className="font-anton text-3xl tracking-wide bg-gradient-to-br from-[#FD3E81] via-[#CB4CB5] to-[#895CF5] bg-clip-text text-transparent"
-        >
-          Adults Only
-        </h2>
-
-        <p className="mt-3 font-poppins text-sm text-slate-300">
-          This website contains adult content and is intended for people aged 18
-          or older (or the legal age in your location). By entering, you confirm
-          that you meet this requirement.
+        <h1 id="age-gate-title">Adults only</h1>
+        <p id="age-gate-description">
+          This website contains adult content. You must be 18 or older, or meet
+          the legal age in your location, to enter.
         </p>
-
-        <div className="mt-8 flex flex-col gap-3">
+        <div className="age-actions">
           <button
-            onClick={handleConfirm}
-            className="rounded-lg bg-gradient-to-br from-[#FD3E81] to-[#895CF5] px-6 py-3 font-poppins font-semibold text-white transition-opacity hover:opacity-90"
+            ref={enterRef}
+            className="button"
+            type="button"
+            onClick={() => {
+              try {
+                localStorage.setItem("age-confirmed", "true");
+              } catch {
+                /* Retain confirmation for this session if storage is blocked. */
+              }
+              setConfirmed(true);
+            }}
           >
-            I am 18 or older, enter
+            I am 18 or older · Enter
           </button>
           <button
-            onClick={handleExit}
-            className="rounded-lg border border-white/20 px-6 py-3 font-poppins font-semibold text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+            className="button button-secondary"
+            type="button"
+            onClick={() => window.location.replace("https://www.google.com")}
           >
-            Exit
+            Leave this website
           </button>
         </div>
-
-        <p className="mt-6 font-poppins text-xs text-slate-500">
-          By entering you also agree to our Terms and Privacy Policy.
+        <p className="age-note">
+          Please leave if you do not meet the age requirement.
         </p>
+        <nav className="gate-links" aria-label="Site information">
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/contact">Contact</Link>
+        </nav>
       </div>
-    </div>
+    </main>
   );
-};
-
-export default AgeGate;
+}

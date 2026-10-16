@@ -1,11 +1,8 @@
-import { ClipLoader } from "react-spinners";
-
-const Spinner = ({ loading }) => {
-  return (
-    <div className="flex items-center justify-center py-8">
-      <ClipLoader color="#4338ca" loading={loading} size={40} />
+export default function Spinner({ loading = true, label = "Loading…" }) {
+  return loading ? (
+    <div role="status" className="loading-status">
+      <span className="spinner" aria-hidden="true" />
+      <span>{label}</span>
     </div>
-  );
-};
-
-export default Spinner;
+  ) : null;
+}

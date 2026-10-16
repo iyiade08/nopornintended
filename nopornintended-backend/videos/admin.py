@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Video, VideoDownloadEvent, VideoViewEvent
+from .models import Category, Video, VideoComment, VideoReaction, VideoDownloadEvent, VideoViewEvent
 
 
 @admin.register(Category)
@@ -55,6 +55,35 @@ class VideoDownloadEventAdmin(admin.ModelAdmin):
     list_filter = ("created_at",)
     readonly_fields = ("video", "ip_address", "user_agent", "created_at")
     search_fields = ("video__title", "ip_address", "user_agent")
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(VideoComment)
+class VideoCommentAdmin(admin.ModelAdmin):
+    list_display = ("name", "video", "is_approved", "created_at")
+    list_filter = ("is_approved", "created_at")
+    search_fields = ("name", "body", "video__title")
+    readonly_fields = ("created_at",)
+    autocomplete_fields = ("video",)
+    actions = ("approve_comments", "hide_comments")
+
+    @admin.action(description="Approve selected comments")
+    def approve_comments(self, request, queryset):
+        queryset.update(is_approved=True)
+
+    @admin.action(description="Hide selected comments")
+    def hide_comments(self, request, queryset):
+        queryset.update(is_approved=False)
+
+
+@admin.register(VideoReaction)
+class VideoReactionAdmin(admin.ModelAdmin):
+    list_display = ("video", "value", "updated_at")
+    list_filter = ("value",)
+    readonly_fields = ("video", "visitor_id", "value", "updated_at")
+    search_fields = ("video__title",)
 
     def has_add_permission(self, request):
         return False

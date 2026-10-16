@@ -17,6 +17,8 @@ def api_root(request):
                 "search": "/api/videos/search/?q=<term>",
                 "track_view": "/api/videos/<id>/view/",
                 "track_download": "/api/videos/<id>/download/",
+                "reactions": "/api/videos/<id>/reaction/",
+                "comments": "/api/videos/<id>/comments/",
                 "pages": "/api/pages/<slug>/",
                 "contact": "/api/contact/",
                 "reports": "/api/reports/",
