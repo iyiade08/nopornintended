@@ -5,7 +5,7 @@
 - Replaced oversized navigation and mismatched fonts with a consistent type scale, compact branding, aligned containers, and readable controls.
 - Made category navigation scroll within the header; added an accessible mobile search panel with Escape handling and route-aware query values.
 - Standardized cards, grid breakpoints, spacing, footer, forms, buttons, focus indicators, and 404/error states. Removed footer destinations that previously led to nonexistent image, GIF, story, and forum pages.
-- Used API thumbnails with lazy loading and an explicit missing-preview fallback. Library cards no longer preload every video file.
+- Used API thumbnails with lazy loading. Missing or broken thumbnails automatically fall back to a paused video frame, loaded near the viewport with a three-request concurrency limit. Unplayable files retain an explicit fallback. Preview frames do not count as video views.
 - Removed forced autoplay, counted views on playback, added playback retry, and improved copy/download failures and cancellation.
 - Applied age confirmation to direct video, search, and saved routes. Protected content is not mounted before confirmation. Policies and support remain public.
 - Added request cancellation, timeouts, retry controls, skeletons, empty states, safe media URLs, and reduced-motion support.
@@ -23,7 +23,7 @@
 
 ## Verification
 
-- Production build, ESLint, formatting check, and nine frontend tests.
+- Production build, ESLint, formatting check, and eighteen frontend tests, including paused-frame loading, cancellation, errors, timeouts, and the preview queue.
 - Twenty-eight backend tests in isolated SQLite, including vote idempotency, switching/removal, comment moderation, hidden-content protection, combined filters, duration boundaries/backfill, stable pagination, and query counts.
 - Browser checks at 320, 390, 768, 1024, and 1440 pixels; mobile search, filters, pagination, voting, saved videos, comment submission, contact, reports, policy rendering, and age-dialog focus trapping.
 - npm audit: zero reported vulnerabilities after removing the unused styling dependency tree.
