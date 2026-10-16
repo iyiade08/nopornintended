@@ -65,10 +65,11 @@ export const getVideos = (params = {}, options) =>
   request(`/videos/?${query(params)}`, options).then(collection);
 export const getVideo = (id, options) =>
   request(`/videos/${encodeURIComponent(id)}/`, options);
-export const getRelatedVideos = (id, options) =>
-  request(`/videos/${encodeURIComponent(id)}/related/`, options).then(
-    collection,
-  );
+export const getRelatedVideos = (id, params = {}, options) =>
+  request(
+    `/videos/${encodeURIComponent(id)}/related/?${query(params)}`,
+    options,
+  ).then(collection);
 export const searchVideos = (term, params = {}, options) =>
   request(`/videos/search/?${query({ ...params, q: term })}`, options).then(
     collection,

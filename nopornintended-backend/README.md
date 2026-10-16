@@ -62,6 +62,14 @@ Admin users will be able to:
 
 Later, a custom admin dashboard can be added if the project needs a more branded or specialized workflow.
 
+### Same-person related videos
+
+Deploy migration `videos.0003_performer_video_performer` with `python manage.py migrate`. In Django Admin, add public/stage names under **Videos → People**, then select the same **Person** for every video featuring that person. The Person column on the videos list is editable for assigning existing videos; remember to save the list. The field is also available on each video's edit form, including an add-person shortcut. Each video has one primary person for grouping.
+
+`GET /api/videos/<id>/related/` now returns only other published videos assigned to that exact person, newest first, regardless of category. It excludes the current video. No person or no other matching videos means an empty result, with no unrelated filler. Existing content is left unassigned until an admin selects a person; names are never inferred from titles or images. Deleting a person clears the assignment while preserving their videos.
+
+The endpoint supports `page` and `page_size` using the same pagination as the library; requests without pagination parameters retain the legacy array response. Video list and detail responses include `performer: {id, name}` or `null`.
+
 ## Local Development Notes
 
 The backend now uses Supabase Postgres when `DATABASE_URL` is present in `.env`. To temporarily return to local SQLite, comment out `DATABASE_URL` and restart Django.

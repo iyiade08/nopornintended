@@ -76,6 +76,27 @@ test("does not send JSON content type on a GET and encodes search input", async 
   assert.equal(url.pathname, "/api/videos/search/");
 });
 
+test("requests a specific page of same-person recommendations", async () => {
+  let captured;
+  const page = {
+    results: [{ id: 9 }],
+    count: 11,
+    next: null,
+    previous: "page1",
+  };
+  mock.method(globalThis, "fetch", async (url) => {
+    captured = new URL(url);
+    return new Response(JSON.stringify(page));
+  });
+  assert.deepEqual(
+    await api.getRelatedVideos(7, { page: 2, page_size: 10 }),
+    page,
+  );
+  assert.equal(captured.pathname, "/api/videos/7/related/");
+  assert.equal(captured.searchParams.get("page"), "2");
+  assert.equal(captured.searchParams.get("page_size"), "10");
+});
+
 test("sends reaction values as JSON", async () => {
   let captured;
   mock.method(globalThis, "fetch", async (url, options) => {

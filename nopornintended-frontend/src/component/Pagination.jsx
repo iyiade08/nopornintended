@@ -2,19 +2,28 @@ import { useSearchParams } from "react-router-dom";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { pageWindow, VIDEO_PAGE_SIZE } from "../lib/pagination";
 
-export default function Pagination({ data, page }) {
+export default function Pagination({
+  data,
+  page,
+  onPageChange,
+  label = "Video pages",
+}) {
   const [params, setParams] = useSearchParams();
   const totalPages = Math.ceil((Number(data?.count) || 0) / VIDEO_PAGE_SIZE);
   if (totalPages <= 1 || (!data?.next && !data?.previous)) return null;
   const compactPages = pageWindow(page, totalPages, 3);
   const go = (nextPage) => {
     if (nextPage === page || nextPage < 1 || nextPage > totalPages) return;
+    if (onPageChange) {
+      onPageChange(nextPage);
+      return;
+    }
     const next = new URLSearchParams(params);
     nextPage === 1 ? next.delete("page") : next.set("page", String(nextPage));
     setParams(next);
   };
   return (
-    <nav className="pagination video-pagination" aria-label="Video pages">
+    <nav className="pagination video-pagination" aria-label={label}>
       <div className="pagination-controls">
         <button
           className="pagination-arrow"

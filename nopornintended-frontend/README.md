@@ -13,6 +13,8 @@ npm run dev
 
 Set `VITE_API_BASE_URL` in `.env` to your Django API URL, including `/api`. See `.env.example`. Restart Vite after changing environment variables. The frontend does not require private backend credentials.
 
+When testing backend changes through local Django Admin, create `.env.development.local` with `VITE_API_BASE_URL=http://127.0.0.1:8000/api`. Vite uses this override only during development; production builds continue to use `.env` or deployment environment variables. The development API and admin should use the same backend. Changing content in local admin does not deploy new Python code to Render, even when both backends share the same database. Deploy backend code and migrations before expecting new API fields on the hosted site.
+
 ## Checks
 
 ```sh
@@ -32,11 +34,12 @@ python manage.py test --settings=config.test_settings
 ## Features
 
 - Responsive library, category navigation, mobile search, sorting, duration filters, and pagination.
-- Library, search, and saved results show 10 videos per page. Left/right arrows and clickable numbered circles navigate between pages; the current page is purple. Compact page windows keep the controls usable on phones.
+- Library, search, and saved results show 12 videos per page, as configured in `src/lib/pagination.js`. Left/right arrows and clickable numbered circles navigate between pages; the current page is purple. Compact page windows keep the controls usable on phones.
 - Uploaded thumbnails take priority. Missing or broken images fall back to a paused video frame automatically, loaded near the viewport with at most three preview requests in progress. These previews do not play audio or count as views. Unplayable files retain the unavailable-preview state.
 - Device-local saved videos, up to 500. Clearing this browser's storage removes this collection; no account or cross-device sync is included.
 - One changeable thumbs-up/down reaction per anonymous browser identity and video. Counts are stored by the backend. This is not verified-person voting; resetting browser storage creates a new identity.
 - Video comments with server-side validation and approval in Django Admin. Only approved comments are public.
+- The download page shows **More from [person]**, containing only other published videos assigned to that person, across categories. It shares the library's page size, arrows, and purple page circles. The section is hidden when no person is assigned or no other matching videos exist.
 - Contact and report forms. Messages and reports are available in Django Admin.
 - Terms and Privacy pages displaying published plain-text `StaticPage` records with the slugs `terms` and `privacy`.
 - Age confirmation on library, search, saved, and video routes. Policies, contact, and reports remain accessible without entering the video library.
@@ -52,6 +55,8 @@ python manage.py migrate
 ```
 
 Migration `videos.0002_video_feedback_and_duration` adds reactions, moderated comments, and indexed duration values; it also backfills existing durations. Enter future durations as `M:SS` or `H:MM:SS`. Unknown durations are excluded when an explicit duration filter is selected.
+
+Migration `videos.0003_performer_video_performer` adds people and an optional **Person** field on videos. After migrating, add each public/stage name under **Videos → People** in Django Admin. Select that same person on all of their videos and save. Existing videos can be assigned from the videos list's **Person** column, or from each video's edit form. Names are never guessed from titles or categories, so existing videos need this one-time assignment before same-person recommendations appear. New uploads should also have their person selected.
 
 Publish the `terms` and `privacy` pages in Django Admin, and approve comments under **Video comments**. Configure the backend's CORS origins for the frontend domain and media storage CORS for downloads. Anonymous rate limits use Django's configured cache; use a shared cache when deploying multiple backend workers.
 

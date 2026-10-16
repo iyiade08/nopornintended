@@ -791,6 +791,9 @@ p {
 .related-section {
   margin-top: 48px;
 }
+.related-section .section-heading {
+  overflow-wrap: anywhere;
+}
 .comments-section {
   margin-top: 40px;
   padding-top: 32px;
@@ -1185,6 +1188,7 @@ p {
   }
 }
 .field,
+.related-section,
 .state-panel,
 .success-text,
 .error-text {

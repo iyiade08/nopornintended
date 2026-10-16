@@ -294,7 +294,7 @@ function VideoDetails({ id }) {
         <Comments videoId={video.id} />
       </div>
       <div className="container">
-        <RelatedVideos videoId={id} />
+        <RelatedVideos video={video} />
       </div>
     </div>
   );

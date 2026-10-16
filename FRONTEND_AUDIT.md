@@ -34,3 +34,11 @@
 Run `python manage.py migrate` on the updated backend before releasing the frontend. Publish the `terms` and `privacy` CMS pages with the site's actual policy text. Comments remain private until approved in Django Admin. Saved videos are local to a browser, and anonymous votes identify browsers rather than verified people.
 
 The configured production backend has not been deployed or migrated by this task. The local preview is sample data; it is not the live catalog.
+
+## Same-person recommendations — October 16, 2026
+
+- Added an optional Person assignment to videos and a People section in Django Admin, including editing assignments from the video list.
+- Replaced category-based recommendations and unrelated filler with only other published videos assigned to the same person. The download-page heading is now **More from [person]**. Untagged videos and people without other videos have no recommendation section.
+- Added independent recommendation pagination using the library's currently configured 12-item page size, arrows, and purple page indicator. Changing recommendation pages keeps the main video open; opening another video resets the recommendation page.
+- Verified 24 frontend tests, 33 backend tests, lint, formatting, build, and migration consistency. Browser checks used two sample people, next/previous navigation, switching videos, and a 320-pixel phone viewport with no horizontal overflow.
+- Deployment requires migration `videos.0003_performer_video_performer` and one-time Person assignments for existing videos. Matching never guesses identities from titles, categories, or images.

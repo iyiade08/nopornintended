@@ -38,7 +38,28 @@ class Category(models.Model):
         return slug
 
 
+class Performer(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "person"
+        verbose_name_plural = "people"
+
+    def __str__(self):
+        return self.name
+
+
 class Video(models.Model):
+    performer = models.ForeignKey(
+        Performer,
+        related_name="videos",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="person",
+        help_text="Select the same person on their videos to link them in related videos. Use their public or stage name.",
+    )
     category = models.ForeignKey(
         Category,
         related_name="videos",

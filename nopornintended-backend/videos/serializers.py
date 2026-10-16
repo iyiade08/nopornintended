@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Category, Video, VideoComment
+from .models import Category, Performer, Video, VideoComment
 
 
 def absolute_url(request, url):
@@ -19,7 +19,14 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "slug", "description"]
 
 
+class PerformerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Performer
+        fields = ["id", "name"]
+
+
 class VideoListSerializer(serializers.ModelSerializer):
+    performer = PerformerSerializer(read_only=True)
     likes_count = serializers.IntegerField(read_only=True, default=0)
     dislikes_count = serializers.IntegerField(read_only=True, default=0)
     comments_count = serializers.IntegerField(read_only=True, default=0)
@@ -46,6 +53,7 @@ class VideoListSerializer(serializers.ModelSerializer):
             "downloads",
             "category",
             "category_slug",
+            "performer",
             "published_at",
             "created_at",
             "likes_count",

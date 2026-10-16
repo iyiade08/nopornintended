@@ -28,7 +28,7 @@ def published_videos():
     def count_for(model, **filters):
         counts = model.objects.filter(video_id=OuterRef("pk"), **filters).order_by().values("video_id").annotate(total=Count("pk")).values("total")
         return Coalesce(Subquery(counts, output_field=IntegerField()), 0)
-    return Video.objects.select_related("category").filter(is_published=True).annotate(
+    return Video.objects.select_related("category", "performer").filter(is_published=True).annotate(
         likes_count=count_for(VideoReaction, value=1),
         dislikes_count=count_for(VideoReaction, value=-1),
         comments_count=count_for(VideoComment, is_approved=True),
@@ -97,28 +97,22 @@ class VideoDetailAPIView(generics.RetrieveAPIView):
         return published_videos()
 
 
-class RelatedVideosAPIView(APIView):
+class RelatedVideosAPIView(generics.ListAPIView):
+    serializer_class = VideoListSerializer
     permission_classes = [AllowAny]
+    filter_backends = []
+    pagination_class = VideoPagination
 
-    def get(self, request, pk):
-        video = get_object_or_404(published_videos(), pk=pk)
-        base_queryset = published_videos().exclude(pk=video.pk)
-        related_queryset = base_queryset
-
-        if video.category_id:
-            related_queryset = base_queryset.filter(category_id=video.category_id)
-
-        related = list(related_queryset[:4])
-        if len(related) < 4:
-            seen_ids = [video.pk] + [item.pk for item in related]
-            related.extend(list(base_queryset.exclude(pk__in=seen_ids)[: 4 - len(related)]))
-
-        serializer = VideoListSerializer(
-            related,
-            many=True,
-            context={"request": request},
+    def get_queryset(self):
+        video = get_object_or_404(Video, pk=self.kwargs["pk"], is_published=True)
+        if video.performer_id is None:
+            return published_videos().none()
+        return (
+            published_videos()
+            .filter(performer_id=video.performer_id)
+            .exclude(pk=video.pk)
+            .order_by("-published_at", "-pk")
         )
-        return Response(serializer.data)
 
 
 class VideoViewAPIView(APIView):

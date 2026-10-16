@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pageWindow, VIDEO_PAGE_SIZE } from "../src/lib/pagination.js";
 
-test("ten videos per page gives the right number of pages including a partial final page", () => {
-  assert.equal(VIDEO_PAGE_SIZE, 10);
+test("the configured twelve videos per page includes a partial final page", () => {
+  assert.equal(VIDEO_PAGE_SIZE, 12);
   assert.equal(Math.ceil(29 / VIDEO_PAGE_SIZE), 3);
-  assert.equal(Math.ceil(20 / VIDEO_PAGE_SIZE), 2);
+  assert.equal(Math.ceil(24 / VIDEO_PAGE_SIZE), 2);
 });
 
 test("short libraries show every numbered page", () => {

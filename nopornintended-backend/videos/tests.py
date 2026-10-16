@@ -9,7 +9,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from .duration import duration_seconds
-from .models import Category, Video, VideoComment, VideoReaction
+from .models import Category, Performer, Video, VideoComment, VideoReaction
 
 
 class VideoAPITests(TestCase):
@@ -129,9 +129,65 @@ class VideoAPITests(TestCase):
             self.assertEqual(self.client.post(f"/api/videos/{self.hidden.pk}/{endpoint}/", payload, format="json").status_code, 404)
         self.assertEqual(self.client.get(f"/api/videos/{self.hidden.pk}/comments/").status_code, 404)
 
-    def test_related_videos(self):
-        related = Video.objects.create(title="Related", category=self.category, video_url="https://example.com/sample.mp4")
-        self.assertEqual([item["id"] for item in self.client.get(f"{self.url}/related/").data], [related.pk])
+    def test_related_videos_match_person_across_categories_without_unrelated_fill(self):
+        person = Performer.objects.create(name="Sample creator")
+        other_person = Performer.objects.create(name="Sample creator two")
+        self.video.performer = person
+        self.video.save(update_fields=["performer"])
+        same_category = Video.objects.create(title="Another film", performer=person, category=self.category, video_url="https://example.com/sample.mp4")
+        other_category = Video.objects.create(title="A different category", performer=person, video_url="https://example.com/sample.mp4")
+        Video.objects.create(title=self.video.title, performer=other_person, category=self.category, video_url="https://example.com/sample.mp4")
+        Video.objects.create(title="No person selected", category=self.category, video_url="https://example.com/sample.mp4")
+        self.hidden.performer = person
+        self.hidden.save(update_fields=["performer"])
+
+        response = self.client.get(f"{self.url}/related/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.data], [other_category.pk, same_category.pk])
+        self.assertTrue(all(item["performer"] == {"id": person.pk, "name": person.name} for item in response.data))
+        self.assertEqual(self.client.get(f"{self.url}/").data["performer"], {"id": person.pk, "name": person.name})
+
+    def test_untagged_video_has_no_unrelated_recommendations(self):
+        Video.objects.create(title="Same category", category=self.category, video_url="https://example.com/sample.mp4")
+        self.assertIsNone(self.client.get(f"{self.url}/").data["performer"])
+        self.assertEqual(self.client.get(f"{self.url}/related/").data, [])
+        page = self.client.get(f"{self.url}/related/", {"page": 1}).data
+        self.assertEqual((page["count"], page["results"]), (0, []))
+
+    def test_person_without_other_videos_has_empty_recommendations(self):
+        self.video.performer = Performer.objects.create(name="Only one film")
+        self.video.save(update_fields=["performer"])
+        Video.objects.create(title="Different person", category=self.category, video_url="https://example.com/sample.mp4")
+        self.assertEqual(self.client.get(f"{self.url}/related/").data, [])
+
+    def test_related_pagination_shows_all_matches_ten_per_page_in_stable_order(self):
+        person = Performer.objects.create(name="Sample creator")
+        self.video.performer = person
+        self.video.save(update_fields=["performer"])
+        related = [Video.objects.create(title=f"Film {index}", performer=person, published_at=self.video.published_at, video_url="https://example.com/sample.mp4") for index in range(12)]
+        with self.assertNumQueries(3):
+            first = self.client.get(f"{self.url}/related/", {"page": 1, "page_size": 10}).data
+        second = self.client.get(f"{self.url}/related/", {"page": 2, "page_size": 10}).data
+        self.assertEqual((first["count"], second["count"]), (12, 12))
+        self.assertEqual((len(first["results"]), len(second["results"])), (10, 2))
+        self.assertIsNotNone(first["next"])
+        self.assertIsNotNone(second["previous"])
+        self.assertIsNone(second["next"])
+        self.assertEqual([item["id"] for page in [first, second] for item in page["results"]], [video.pk for video in reversed(related)])
+        self.assertEqual(self.client.get(f"{self.url}/related/", {"page": 3}).status_code, 404)
+
+    def test_hidden_or_missing_video_has_no_related_endpoint(self):
+        for pk in [self.hidden.pk, 99999]:
+            self.assertEqual(self.client.get(f"/api/videos/{pk}/related/").status_code, 404)
+
+    def test_deleting_person_preserves_videos_and_clears_recommendations(self):
+        person = Performer.objects.create(name="Sample creator")
+        self.video.performer = person
+        self.video.save(update_fields=["performer"])
+        person.delete()
+        self.video.refresh_from_db()
+        self.assertIsNone(self.video.performer_id)
+        self.assertEqual(self.client.get(f"{self.url}/related/").data, [])
 
     def test_comment_rate_limit(self):
         for index in range(5):
