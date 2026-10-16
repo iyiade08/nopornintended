@@ -147,12 +147,50 @@ class VideoAPITests(TestCase):
         self.assertTrue(all(item["performer"] == {"id": person.pk, "name": person.name} for item in response.data))
         self.assertEqual(self.client.get(f"{self.url}/").data["performer"], {"id": person.pk, "name": person.name})
 
-    def test_untagged_video_has_no_unrelated_recommendations(self):
-        Video.objects.create(title="Same category", category=self.category, video_url="https://example.com/sample.mp4")
+    def test_untagged_video_prioritizes_category_then_recent_videos(self):
+        same_category = Video.objects.create(title="Same category", category=self.category, published_at=self.video.published_at, video_url="https://example.com/sample.mp4")
+        newer_same_category = Video.objects.create(title="Newer in category", category=self.category, published_at=self.video.published_at, video_url="https://example.com/sample.mp4")
+        other_category = Video.objects.create(title="Newest overall", published_at=self.video.published_at, video_url="https://example.com/sample.mp4")
+        self.hidden.category = self.category
+        self.hidden.save(update_fields=["category"])
         self.assertIsNone(self.client.get(f"{self.url}/").data["performer"])
-        self.assertEqual(self.client.get(f"{self.url}/related/").data, [])
+        expected_ids = [newer_same_category.pk, same_category.pk, other_category.pk]
+        self.assertEqual([item["id"] for item in self.client.get(f"{self.url}/related/").data], expected_ids)
         page = self.client.get(f"{self.url}/related/", {"page": 1}).data
-        self.assertEqual((page["count"], page["results"]), (0, []))
+        self.assertEqual(page["count"], 3)
+        self.assertEqual([item["id"] for item in page["results"]], expected_ids)
+
+    def test_untagged_video_without_category_uses_newest_videos(self):
+        self.video.category = None
+        self.video.save(update_fields=["category"])
+        older = Video.objects.create(title="Older film", category=self.category, video_url="https://example.com/sample.mp4")
+        newer = Video.objects.create(title="Newer film", video_url="https://example.com/sample.mp4")
+        self.assertEqual([item["id"] for item in self.client.get(f"{self.url}/related/").data], [newer.pk, older.pk])
+
+    def test_untagged_video_without_other_published_videos_has_empty_results(self):
+        self.assertEqual(self.client.get(f"{self.url}/related/").data, [])
+
+    def test_assigning_person_replaces_category_recommendations(self):
+        person = Performer.objects.create(name="Sample creator")
+        same_person = Video.objects.create(title="Same person, other category", performer=person, video_url="https://example.com/sample.mp4")
+        same_category = Video.objects.create(title="Same category, other person", category=self.category, video_url="https://example.com/sample.mp4")
+        self.assertEqual([item["id"] for item in self.client.get(f"{self.url}/related/").data], [same_category.pk, same_person.pk])
+        self.video.performer = person
+        self.video.save(update_fields=["performer"])
+        self.assertEqual([item["id"] for item in self.client.get(f"{self.url}/related/").data], [same_person.pk])
+
+    def test_fallback_pagination_keeps_category_priority_across_pages(self):
+        same_category = [Video.objects.create(title=f"Category film {index}", category=self.category, published_at=self.video.published_at, video_url="https://example.com/sample.mp4") for index in range(3)]
+        other_videos = [Video.objects.create(title=f"Other film {index}", published_at=self.video.published_at, video_url="https://example.com/sample.mp4") for index in range(10)]
+        with self.assertNumQueries(3):
+            first = self.client.get(f"{self.url}/related/", {"page": 1, "page_size": 12}).data
+        second = self.client.get(f"{self.url}/related/", {"page": 2, "page_size": 12}).data
+        self.assertEqual((first["count"], len(first["results"]), len(second["results"])), (13, 12, 1))
+        expected_ids = [video.pk for video in reversed(same_category)] + [video.pk for video in reversed(other_videos)]
+        self.assertEqual([item["id"] for page in [first, second] for item in page["results"]], expected_ids)
+        self.assertIsNotNone(first["next"])
+        self.assertIsNotNone(second["previous"])
+        self.assertIsNone(second["next"])
 
     def test_person_without_other_videos_has_empty_recommendations(self):
         self.video.performer = Performer.objects.create(name="Only one film")
@@ -180,14 +218,15 @@ class VideoAPITests(TestCase):
         for pk in [self.hidden.pk, 99999]:
             self.assertEqual(self.client.get(f"/api/videos/{pk}/related/").status_code, 404)
 
-    def test_deleting_person_preserves_videos_and_clears_recommendations(self):
+    def test_deleting_person_preserves_videos_and_restores_fallback(self):
         person = Performer.objects.create(name="Sample creator")
         self.video.performer = person
         self.video.save(update_fields=["performer"])
+        related = Video.objects.create(title="Another film", performer=person, category=self.category, video_url="https://example.com/sample.mp4")
         person.delete()
         self.video.refresh_from_db()
         self.assertIsNone(self.video.performer_id)
-        self.assertEqual(self.client.get(f"{self.url}/related/").data, [])
+        self.assertEqual([item["id"] for item in self.client.get(f"{self.url}/related/").data], [related.pk])
 
     def test_comment_rate_limit(self):
         for index in range(5):

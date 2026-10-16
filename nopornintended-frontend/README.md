@@ -39,7 +39,7 @@ python manage.py test --settings=config.test_settings
 - Device-local saved videos, up to 500. Clearing this browser's storage removes this collection; no account or cross-device sync is included.
 - One changeable thumbs-up/down reaction per anonymous browser identity and video. Counts are stored by the backend. This is not verified-person voting; resetting browser storage creates a new identity.
 - Video comments with server-side validation and approval in Django Admin. Only approved comments are public.
-- The download page shows **More from [person]**, containing only other published videos assigned to that person, across categories. It shares the library's page size, arrows, and purple page circles. The section is hidden when no person is assigned or no other matching videos exist.
+- The download page shows **More from [person]** when a person is assigned, containing only that person's other published videos, across categories. Without a person assignment, **Related videos** shows videos from the same category first, followed by other recent videos. It shares the library's page size, arrows, and purple page circles. The section is hidden when the selected recommendation source has no other published videos.
 - Contact and report forms. Messages and reports are available in Django Admin.
 - Terms and Privacy pages displaying published plain-text `StaticPage` records with the slugs `terms` and `privacy`.
 - Age confirmation on library, search, saved, and video routes. Policies, contact, and reports remain accessible without entering the video library.
@@ -56,7 +56,7 @@ python manage.py migrate
 
 Migration `videos.0002_video_feedback_and_duration` adds reactions, moderated comments, and indexed duration values; it also backfills existing durations. Enter future durations as `M:SS` or `H:MM:SS`. Unknown durations are excluded when an explicit duration filter is selected.
 
-Migration `videos.0003_performer_video_performer` adds people and an optional **Person** field on videos. After migrating, add each public/stage name under **Videos → People** in Django Admin. Select that same person on all of their videos and save. Existing videos can be assigned from the videos list's **Person** column, or from each video's edit form. Names are never guessed from titles or categories, so existing videos need this one-time assignment before same-person recommendations appear. New uploads should also have their person selected.
+Migration `videos.0003_performer_video_performer` adds people and an optional **Person** field on videos. After migrating, add each public/stage name under **Videos → People** in Django Admin. Select that same person on all of their videos and save. Existing videos can be assigned from the videos list's **Person** column, or from each video's edit form. Names are never guessed from titles or categories. Videos without this assignment use category/recent recommendations; selecting a person automatically replaces that fallback with same-person recommendations. New uploads should also have their person selected when known.
 
 Publish the `terms` and `privacy` pages in Django Admin, and approve comments under **Video comments**. Configure the backend's CORS origins for the frontend domain and media storage CORS for downloads. Anonymous rate limits use Django's configured cache; use a shared cache when deploying multiple backend workers.
 

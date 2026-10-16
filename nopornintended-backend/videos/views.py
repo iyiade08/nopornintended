@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Count, F, IntegerField, OuterRef, Q, Subquery
+from django.db.models import Case, Count, F, IntegerField, OuterRef, Q, Subquery, Value, When
 from django.db.models.functions import Coalesce, Lower
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
@@ -105,14 +105,19 @@ class RelatedVideosAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         video = get_object_or_404(Video, pk=self.kwargs["pk"], is_published=True)
-        if video.performer_id is None:
-            return published_videos().none()
-        return (
-            published_videos()
-            .filter(performer_id=video.performer_id)
-            .exclude(pk=video.pk)
-            .order_by("-published_at", "-pk")
-        )
+        queryset = published_videos().exclude(pk=video.pk)
+        if video.performer_id is not None:
+            return queryset.filter(performer_id=video.performer_id).order_by("-published_at", "-pk")
+        if video.category_id is not None:
+            queryset = queryset.annotate(
+                related_priority=Case(
+                    When(category_id=video.category_id, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            return queryset.order_by("related_priority", "-published_at", "-pk")
+        return queryset.order_by("-published_at", "-pk")
 
 
 class VideoViewAPIView(APIView):

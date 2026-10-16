@@ -6,9 +6,10 @@ import Spinner from "./Spinner";
 import Pagination from "./Pagination";
 import { VIDEO_PAGE_SIZE } from "../lib/pagination";
 
-function PerformerVideos({ videoId, performer }) {
+function RelatedVideoList({ videoId, performer }) {
   const [page, setPage] = useState(1);
   const sectionRef = useRef(null);
+  const title = performer ? `More from ${performer.name}` : "Related videos";
   const loader = useCallback(
     (signal) =>
       getRelatedVideos(
@@ -29,13 +30,19 @@ function PerformerVideos({ videoId, performer }) {
       aria-busy={resource.loading}
     >
       <h2 className="section-heading" id="related-title">
-        More from {performer.name}
+        {title}
       </h2>
       {resource.loading ? (
-        <Spinner label={`Loading more videos from ${performer.name}…`} />
+        <Spinner
+          label={
+            performer
+              ? `Loading more videos from ${performer.name}…`
+              : "Loading related videos…"
+          }
+        />
       ) : resource.error ? (
         <div className="action-message">
-          <p>Other videos from this person are temporarily unavailable.</p>
+          <p>Related videos are temporarily unavailable.</p>
           <button type="button" className="text-link" onClick={resource.retry}>
             Try again
           </button>
@@ -50,7 +57,11 @@ function PerformerVideos({ videoId, performer }) {
           <Pagination
             data={resource.data}
             page={page}
-            label={`More videos from ${performer.name}`}
+            label={
+              performer
+                ? `More videos from ${performer.name}`
+                : "Related video pages"
+            }
             onPageChange={(nextPage) => {
               setPage(nextPage);
               sectionRef.current?.scrollIntoView({ block: "start" });
@@ -63,10 +74,9 @@ function PerformerVideos({ videoId, performer }) {
 }
 
 export default function RelatedVideos({ video }) {
-  if (!video.performer) return null;
   return (
-    <PerformerVideos
-      key={`${video.id}:${video.performer.id}`}
+    <RelatedVideoList
+      key={`${video.id}:${video.performer?.id ?? "unassigned"}`}
       videoId={video.id}
       performer={video.performer}
     />

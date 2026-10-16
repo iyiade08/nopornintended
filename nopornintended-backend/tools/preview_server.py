@@ -40,8 +40,9 @@ people = [Performer.objects.create(name=name) for name in ("Avery Lane", "Jordan
 titles = ["A quiet moment — sample film", "An evening in the city", "Behind the camera: a conversation", "The art of taking your time", "A longer title to check how video cards wrap across smaller screens"]
 for index in range(1, 30):
     video = Video.objects.create(title=titles[(index - 1) % len(titles)] + (f" · {index}" if index > 5 else ""), category=categories[(index - 1) % len(categories)], description="Harmless sample content for local frontend testing. This fixture database is isolated from the live website.", video_url="http://127.0.0.1:5174/src/assets/video/coming-soon%20.mp4", thumbnail=f"{index}.svg" if index != 5 else "", duration=["4:30", "12:15", "32:00", "8:45"][(index - 1) % 4], views_count=1240 * index)
-    video.performer = people[(index - 1) % len(people)]
-    video.title = f"{video.performer.name} — {video.title}"
+    video.performer = people[(index - 1) % len(people)] if index != 29 else None
+    if video.performer:
+        video.title = f"{video.performer.name} — {video.title}"
     video.save(update_fields=["performer", "title"])
     if index == 29:
         for number, value in [(1, 1), (2, 1), (3, -1)]:

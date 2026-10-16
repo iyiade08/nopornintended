@@ -38,7 +38,7 @@ The configured production backend has not been deployed or migrated by this task
 ## Same-person recommendations — October 16, 2026
 
 - Added an optional Person assignment to videos and a People section in Django Admin, including editing assignments from the video list.
-- Replaced category-based recommendations and unrelated filler with only other published videos assigned to the same person. The download-page heading is now **More from [person]**. Untagged videos and people without other videos have no recommendation section.
+- Assigned people take priority in recommendations: **More from [person]** contains only their other published videos. Untagged videos use **Related videos**, ordered by matching category first and then other recent videos. An assigned person with no other matching videos has no recommendation section.
 - Added independent recommendation pagination using the library's currently configured 12-item page size, arrows, and purple page indicator. Changing recommendation pages keeps the main video open; opening another video resets the recommendation page.
-- Verified 24 frontend tests, 33 backend tests, lint, formatting, build, and migration consistency. Browser checks used two sample people, next/previous navigation, switching videos, and a 320-pixel phone viewport with no horizontal overflow.
-- Deployment requires migration `videos.0003_performer_video_performer` and one-time Person assignments for existing videos. Matching never guesses identities from titles, categories, or images.
+- Verified 24 frontend tests, 37 backend tests, lint, formatting, and build. Recommendation coverage includes category/recent fallback, stable pagination, empty results, and assigning/removing people. Browser checks verified fallback ordering, next/previous navigation, and person priority; the earlier layout check passed at a 320-pixel phone viewport with no horizontal overflow.
+- Person grouping requires migration `videos.0003_performer_video_performer` and one-time Person assignments for existing videos. The category/recent fallback extension adds no migration. Matching never guesses identities from titles, categories, or images.
