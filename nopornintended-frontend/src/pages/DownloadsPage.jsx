@@ -12,6 +12,7 @@ import VideoFeedback from "../component/VideoFeedback";
 import Comments from "../component/Comments";
 import Spinner from "../component/Spinner";
 import ContentState from "../component/ContentState";
+import VideoPlayer from "../component/VideoPlayer";
 import { getVideo, trackView, trackDownload } from "../api/api";
 import { buildFileName, formatCount, mediaUrl } from "../lib/media";
 import useResource from "../hooks/useResource";
@@ -27,8 +28,6 @@ function VideoDetails({ id }) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const [directUrl, setDirectUrl] = useState("");
-  const [playError, setPlayError] = useState(false);
-  const [playAttempt, setPlayAttempt] = useState(0);
   const tracked = useRef(false);
   const active = useRef(true);
   const downloadRef = useRef(null);
@@ -151,38 +150,12 @@ function VideoDetails({ id }) {
           Back to the library
         </Link>
         <article className="player-shell">
-          <div className="player-media">
-            {path && (
-              <video
-                key={playAttempt}
-                src={path}
-                poster={mediaUrl(video.thumbnail) || undefined}
-                playsInline
-                controls
-                preload="metadata"
-                aria-label={video.label || video.title}
-                onPlay={onPlay}
-                onError={() => setPlayError(true)}
-              />
-            )}
-            {(!path || playError) && (
-              <div className="player-error" role="alert">
-                <p>This video couldn't be played.</p>
-                {path && (
-                  <button
-                    className="button button-secondary"
-                    type="button"
-                    onClick={() => {
-                      setPlayError(false);
-                      setPlayAttempt((value) => value + 1);
-                    }}
-                  >
-                    Retry playback
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          <VideoPlayer
+            source={path}
+            poster={mediaUrl(video.thumbnail)}
+            title={video.label || video.title}
+            onPlay={onPlay}
+          />
           <div className="player-info">
             <h1 className="player-title">
               {video.label || video.title || "Untitled video"}

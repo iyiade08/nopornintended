@@ -36,6 +36,7 @@ python manage.py test --settings=config.test_settings
 - Responsive library, category navigation, mobile search, sorting, duration filters, and pagination.
 - Library, search, and saved results show 12 videos per page, as configured in `src/lib/pagination.js`. Left/right arrows and clickable numbered circles navigate between pages; the current page is purple. Compact page windows keep the controls usable on phones.
 - Uploaded thumbnails take priority. Missing or broken images fall back to a paused video frame automatically, loaded near the viewport with at most three preview requests in progress. These previews do not play audio or count as views. Unplayable files retain the unavailable-preview state.
+- The download-page player automatically matches each video's natural aspect ratio and shows the complete frame without cropping or stretching. Portrait frames stay at a comfortable width, with separate size limits for desktop, tablet, and phone layouts; landscape frames are capped at 800px on desktop and 640px on tablet. Inline playback never enlarges beyond the source's pixel dimensions. The details card sits below the video. Native playback controls and fullscreen remain available; there are no display-mode buttons. Playback uses the uploaded file directly. Resolution variants and transcoding are not configured.
 - Device-local saved videos, up to 500. Clearing this browser's storage removes this collection; no account or cross-device sync is included.
 - One changeable thumbs-up/down reaction per anonymous browser identity and video. Counts are stored by the backend. This is not verified-person voting; resetting browser storage creates a new identity.
 - Video comments with server-side validation and approval in Django Admin. Only approved comments are public.
@@ -73,3 +74,5 @@ npm run dev -- --config tests/preview.config.js
 ```
 
 Open `http://127.0.0.1:5174/`. The sample data disappears when the preview backend stops. The normal app uses port 5173 and your configured API.
+
+For isolated player checks, open `http://127.0.0.1:5174/tests/fixtures/player-preview.html`. This development-only entry records temporary geometric test videos at portrait, square, landscape, and low-resolution dimensions. Check that all four edges remain visible and the frame never exceeds the source size. It also provides unavailable-media and fullscreen checks without connecting to the catalog API. It is excluded from the production build.

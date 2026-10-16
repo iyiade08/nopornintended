@@ -42,3 +42,9 @@ The configured production backend has not been deployed or migrated by this task
 - Added independent recommendation pagination using the library's currently configured 12-item page size, arrows, and purple page indicator. Changing recommendation pages keeps the main video open; opening another video resets the recommendation page.
 - Verified 24 frontend tests, 37 backend tests, lint, formatting, and build. Recommendation coverage includes category/recent fallback, stable pagination, empty results, and assigning/removing people. Browser checks verified fallback ordering, next/previous navigation, and person priority; the earlier layout check passed at a 320-pixel phone viewport with no horizontal overflow.
 - Person grouping requires migration `videos.0003_performer_video_performer` and one-time Person assignments for existing videos. The category/recent fallback extension adds no migration. Matching never guesses identities from titles, categories, or images.
+
+## Video player fit — October 16, 2026
+
+- Removed both display-mode buttons. The video frame now follows source metadata and uses uncropped, proportional playback. Desktop, tablet, and phone size limits keep portrait frames comfortable; inline playback is capped at the source dimensions. The video frame and details card are separate, so portrait videos have a matching frame instead of a wide surrounding box.
+- Verified portrait (608 × 1080), square, landscape, and low-resolution sample videos at 1440px, 820px, and 390px widths, plus a 320px phone check. Frames keep their native proportions without cropping, stretching, upscaling, or horizontal overflow. The portrait sample measured about 383px wide on desktop, 360px on tablet, and 338px on a 390px phone.
+- Native playback, fullscreen, and retry on unavailable media remain supported. Frontend tests, lint, formatting, and production build passed. No backend migration is needed.
