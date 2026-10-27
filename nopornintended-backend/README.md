@@ -49,6 +49,10 @@ These are the first backend endpoints planned for the current frontend and near-
 
 ## Admin Workflow
 
+For bulk copying existing Supabase videos and updating their links, follow
+[the Bunny migration guide](BUNNY_MIGRATION.md). The command defaults to a
+database-only preview and keeps the Supabase originals on apply.
+
 For the first version, content is managed through Django Admin instead of a custom frontend dashboard.
 
 Admin users will be able to:

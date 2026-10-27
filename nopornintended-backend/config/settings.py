@@ -196,6 +196,15 @@ elif USE_SUPABASE_STORAGE:
     }
 
 
+# Optional credentials for the manual Supabase-to-Bunny migration command.
+# This does not change the storage used by admin file/thumbnail uploads.
+BUNNY_STORAGE_ZONE = env("BUNNY_STORAGE_ZONE", default="")
+BUNNY_STORAGE_ENDPOINT = env("BUNNY_STORAGE_ENDPOINT", default="https://storage.bunnycdn.com")
+BUNNY_STORAGE_PASSWORD = env("BUNNY_STORAGE_PASSWORD", default="")
+BUNNY_CDN_URL = env("BUNNY_CDN_URL", default="")
+BUNNY_TRANSFER_TIMEOUT = env.int("BUNNY_TRANSFER_TIMEOUT", default=600)
+
+
 REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
