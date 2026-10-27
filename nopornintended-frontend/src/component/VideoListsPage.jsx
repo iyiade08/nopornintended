@@ -31,9 +31,9 @@ export default function VideoListsPage({ mode = "library" }) {
     : "";
   const rawPage = Number(params.get("page"));
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-  const savedIds = saved.join(",");
   const isSearch = mode === "search";
   const isSaved = mode === "saved";
+  const savedIds = isSaved ? saved.join(",") : "";
   const canLoad = !(isSearch && !q) && !(isSaved && !saved.length);
   const loader = useCallback(
     (signal) => {
@@ -179,7 +179,7 @@ export default function VideoListsPage({ mode = "library" }) {
           </Link>
         </ContentState>
       ) : resource.loading ? (
-        <VideoSkeletons />
+        <VideoSkeletons slow={resource.slow} />
       ) : resource.error ? (
         <ContentState
           error

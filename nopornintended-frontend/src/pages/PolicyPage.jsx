@@ -35,7 +35,7 @@ export default function PolicyPage({ slug }) {
         </div>
       </div>
       {resource.loading ? (
-        <Spinner label="Loading page…" />
+        <Spinner label="Loading page…" slow={resource.slow} />
       ) : resource.error ? (
         <ContentState
           error={resource.error.status !== 404}

@@ -8,7 +8,8 @@ async function request(path, options = {}) {
   const abort = () => controller.abort();
   if (signal?.aborted) controller.abort();
   signal?.addEventListener("abort", abort, { once: true });
-  const timeout = setTimeout(abort, 20000);
+  // Free hosting can need about a minute to wake after an idle period.
+  const timeout = setTimeout(abort, 90000);
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...rest,

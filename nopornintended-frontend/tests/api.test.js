@@ -12,7 +12,10 @@ const source = readFileSync(
 const api = await import(
   `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
 );
-afterEach(() => mock.restoreAll());
+afterEach(() => {
+  mock.restoreAll();
+  mock.timers.reset();
+});
 
 test("accepts legacy arrays and paginated lists", async () => {
   const items = [{ id: 1, label: "Sample" }];
@@ -129,4 +132,52 @@ test("aborts an obsolete request when its caller leaves the page", async () => {
   const pending = api.getVideos({}, { signal: controller.signal });
   controller.abort();
   await assert.rejects(pending, { name: "AbortError" });
+});
+
+test("lets a sleeping backend wake without failing at the old 20-second limit", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  let requestSignal;
+  mock.method(globalThis, "fetch", (url, { signal }) => {
+    requestSignal = signal;
+    return new Promise((resolve, reject) => {
+      signal.addEventListener(
+        "abort",
+        () => reject(new DOMException("Aborted", "AbortError")),
+        { once: true },
+      );
+      setTimeout(() => resolve(new Response("[]")), 60000);
+    });
+  });
+  const pending = api.getVideos();
+  mock.timers.tick(21000);
+  assert.equal(requestSignal.aborted, false);
+  mock.timers.tick(39000);
+  assert.equal((await pending).count, 0);
+  mock.timers.tick(90000);
+  assert.equal(requestSignal.aborted, false);
+});
+
+test("ends a stalled request after 90 seconds without automatically repeating a submission", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  const fetchMock = mock.method(
+    globalThis,
+    "fetch",
+    (url, { signal }) =>
+      new Promise((resolve, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
+      }),
+  );
+  const pending = api.sendComment(7, {
+    name: "Reader",
+    body: "Sample comment",
+  });
+  mock.timers.tick(89999);
+  assert.equal(fetchMock.mock.calls[0].arguments[1].signal.aborted, false);
+  mock.timers.tick(1);
+  await assert.rejects(pending, /taking too long/);
+  assert.equal(fetchMock.mock.callCount(), 1);
 });

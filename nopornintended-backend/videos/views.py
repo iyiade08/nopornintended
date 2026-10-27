@@ -1,3 +1,5 @@
+from ipaddress import ip_address
+
 from django.db import transaction
 from django.db.models import Case, Count, F, IntegerField, OuterRef, Q, Subquery, Value, When
 from django.db.models.functions import Coalesce, Lower
@@ -10,14 +12,20 @@ from rest_framework.views import APIView
 from .models import Category, Video, VideoComment, VideoReaction, VideoDownloadEvent, VideoViewEvent
 from .pagination import CommentPagination, VideoPagination
 from .serializers import CategorySerializer, CommentSerializer, ReactionSerializer, VideoDetailSerializer, VideoListSerializer, VideoQuerySerializer
-from .throttles import CommentThrottle, ReactionThrottle
+from .throttles import CommentThrottle, ReactionThrottle, TrackingThrottle
 
 
 def get_client_ip(request):
-    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    candidates = (forwarded_for.split(",")[0].strip(), request.META.get("REMOTE_ADDR"))
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            return str(ip_address(candidate))
+        except ValueError:
+            continue
+    return None
 
 
 def get_user_agent(request):
@@ -122,9 +130,11 @@ class RelatedVideosAPIView(generics.ListAPIView):
 
 class VideoViewAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [TrackingThrottle]
 
+    @transaction.atomic
     def post(self, request, pk):
-        video = get_object_or_404(published_videos(), pk=pk)
+        video = get_object_or_404(Video, pk=pk, is_published=True)
         VideoViewEvent.objects.create(
             video=video,
             ip_address=get_client_ip(request),
@@ -140,7 +150,9 @@ class VideoViewAPIView(APIView):
 
 class VideoDownloadAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [TrackingThrottle]
 
+    @transaction.atomic
     def post(self, request, pk):
         video = get_object_or_404(published_videos(), pk=pk)
         VideoDownloadEvent.objects.create(

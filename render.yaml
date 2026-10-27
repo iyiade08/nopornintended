@@ -5,7 +5,6 @@ services:
     plan: free
     rootDir: nopornintended-backend
     buildCommand: bash build.sh
-    preDeployCommand: python manage.py migrate
     startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     healthCheckPath: /api/
     envVars:

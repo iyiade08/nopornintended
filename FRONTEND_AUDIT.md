@@ -48,3 +48,15 @@ The configured production backend has not been deployed or migrated by this task
 - Removed both display-mode buttons. The video frame now follows source metadata and uses uncropped, proportional playback. Desktop, tablet, and phone size limits keep portrait frames comfortable; inline playback is capped at the source dimensions. The video frame and details card are separate, so portrait videos have a matching frame instead of a wide surrounding box.
 - Verified portrait (608 × 1080), square, landscape, and low-resolution sample videos at 1440px, 820px, and 390px widths, plus a 320px phone check. Frames keep their native proportions without cropping, stretching, upscaling, or horizontal overflow. The portrait sample measured about 383px wide on desktop, 360px on tablet, and 338px on a 390px phone.
 - Native playback, fullscreen, and retry on unavailable media remain supported. Frontend tests, lint, formatting, and production build passed. No backend migration is needed.
+
+
+## Final frontend/backend review — October 27, 2026
+
+- Extended the API deadline from 20 to 90 seconds so a normal Render Free wake-up can finish. Pending loads show a visible notice after eight seconds. Cancellation still stops obsolete requests; writes are not automatically retried.
+- Fixed saving/unsaving on the library and search pages so it no longer triggers a fresh library request. The saved collection still refreshes when its contents change.
+- Downloads now fetch directly from storage while Django records analytics independently. A stalled analytics request cannot hold up the file.
+- Added basic view/download tracking limits, safe handling of malformed IP headers, atomic event/counter updates, and a lighter view-tracking lookup.
+- Moved automatic migrations into the build script for Render Free and removed the paid-only pre-deploy command. Added a short production HSTS policy for the API hostname, without subdomain inclusion or preload.
+- Verified 26 frontend tests and 69 backend tests, ESLint, formatting, production build, Django system checks, and no pending model migrations. Production-like deployment checks retain only the intentional HSTS subdomain/preload advisories, documented in the backend README.
+- Local browser checks used harmless in-memory fixtures at 1440px, 820px, 390px, and 320px: no horizontal overflow or heading/header overlap, working pagination and saved collection changes, no extra request after bookmarking, visible slow-load feedback beyond the old deadline, immediate file download despite a pending analytics request, and no JavaScript errors.
+- These changes are prepared locally and have not been pushed or deployed by this review. Render's idle sleep remains a hosting limitation. Database and media-content state were not modified.

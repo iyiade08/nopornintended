@@ -14,3 +14,8 @@ class CommentThrottle(AnonRateThrottle):
 class ReactionThrottle(AnonRateThrottle):
     scope = "reactions"
     rate = "60/minute"
+
+
+class TrackingThrottle(AnonRateThrottle):
+    scope = "tracking"
+    rate = "120/minute"

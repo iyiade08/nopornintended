@@ -84,7 +84,7 @@ export default function Comments({ videoId }) {
         )}
       </form>
       {resource.loading ? (
-        <Spinner label="Loading comments…" />
+        <Spinner label="Loading comments…" slow={resource.slow} />
       ) : resource.error ? (
         <div className="action-message" role="alert">
           <p>Comments couldn't be loaded.</p>

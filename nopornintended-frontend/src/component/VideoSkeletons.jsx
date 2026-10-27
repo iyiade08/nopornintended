@@ -1,7 +1,13 @@
-export default function VideoSkeletons() {
+export default function VideoSkeletons({ slow = false }) {
   return (
-    <div role="status" aria-label="Loading videos">
-      <span className="sr-only">Loading videos…</span>
+    <div role="status">
+      {slow ? (
+        <p className="action-message loading-notice">
+          Loading is taking longer than usual. Please keep this page open.
+        </p>
+      ) : (
+        <span className="sr-only">Loading videos…</span>
+      )}
       <div className="video-grid" aria-hidden="true">
         {Array.from({ length: 8 }, (_, index) => (
           <div className="skeleton-card" key={index}>

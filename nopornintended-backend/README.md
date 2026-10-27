@@ -25,7 +25,7 @@ This README is the running backend setup log. Each step should be checked off as
 - [x] Step 9: Create database models and register them in Django Admin.
 - [x] Step 10: Build serializers, API views, and URL routes.
 - [x] Step 11: Run migrations and test local API endpoints.
-- [ ] Step 12: Connect the React frontend to the backend API.
+- [x] Step 12: Connect the React frontend to the backend API.
 - [x] Step 13: Add Supabase Storage configuration.
 - [x] Step 14: Prepare Render deployment settings.
 - [x] Step 15: Switch the database from local SQLite to Supabase Postgres.
@@ -250,3 +250,16 @@ Completed external checkpoint:
 - Verified `GET /api/videos/` returns the existing video from the Postgres-backed server.
 
 Step 15 status: complete. Existing Django Admin credentials should continue to work because the local admin user was copied into Supabase Postgres.
+
+
+## Final review — October 27, 2026
+
+The frontend integration, support/policy routes, and saved/feedback features are complete. Earlier step-by-step entries above record historical checkpoints.
+
+- Render Free uses `bash build.sh` to install dependencies, collect static assets, and run `python manage.py migrate --no-input`. The Blueprint no longer configures a separate pre-deploy command because [Render only supports that command on paid web services](https://render.com/docs/deploys#pre-deploy-command). Keep the Gunicorn start command as configured. If the existing service was configured manually, confirm that its Build Command is `bash build.sh`; Git changes do not rewrite manually entered dashboard commands.
+- Tracking views/downloads has a shared anonymous allowance of 120 requests per minute per client identity. This reduces accidental repeated writes. Existing comment, reaction, and support-form limits remain. These cache-based limits are approximate and local to the current worker, not distributed abuse protection; use a shared cache if adding workers later.
+- Malformed client IP headers fall back to a valid connection IP or a null value. Tracking events and counter changes use one database transaction, and view tracking no longer calculates unrelated feedback counts.
+- Production defaults include a one-hour HTTPS-only policy for the API hostname (`SECURE_HSTS_SECONDS=3600` when `DEBUG=False`). Local development defaults to zero. Subdomain inclusion and browser preload remain disabled deliberately. Deployment checks report advisory W005/W021 for those choices; do not enable them just to silence the checks without verifying the entire domain and accepting a long-lived HTTPS commitment. See [Django's HSTS guidance](https://docs.djangoproject.com/en/5.2/ref/middleware/#http-strict-transport-security).
+- Verification: 69 isolated backend tests passed, system checks passed, and no pending model migrations were detected. Tests use `config.test_settings` and never write to the live database.
+
+This review changes local code only. Commit/push and deploy both applications before expecting the updated behavior on the live domain. It does not recover the quota-blocked Supabase originals, change published content, move storage, or upgrade hosting. Existing originals should be kept until recovery and verification are complete.

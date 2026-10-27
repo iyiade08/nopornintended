@@ -279,6 +279,9 @@ p {
 .page-section {
   padding-block: 40px 64px;
 }
+.loading-notice {
+  margin-bottom: 20px;
+}
 .page-head {
   display: flex;
   justify-content: space-between;

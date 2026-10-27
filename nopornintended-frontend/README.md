@@ -45,7 +45,9 @@ python manage.py test --settings=config.test_settings
 - Terms and Privacy pages displaying published plain-text `StaticPage` records with the slugs `terms` and `privacy`.
 - Age confirmation on library, search, saved, and video routes. Policies, contact, and reports remain accessible without entering the video library.
 
-Video views are counted when playback starts. Downloads can use a direct-file fallback when storage CORS prevents a browser download.
+Video views are counted when playback starts. File downloads begin directly from the video's storage URL, while download analytics runs separately; a slow analytics endpoint does not delay the file. Downloads can use a direct-file fallback when storage CORS prevents a browser download.
+
+API requests allow up to 90 seconds for free hosting to wake. After eight seconds, pending library, video, comment, recommendation, and policy loads show a visible waiting message. Requests are canceled when their page becomes obsolete. Submissions are never automatically repeated after a timeout. This handles a cold start more clearly; it does not keep Render awake or remove its hosting limits. Saving a video on the library or search page does not reload the video list.
 
 ## Backend deployment
 

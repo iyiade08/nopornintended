@@ -74,16 +74,12 @@ function VideoDetails({ id }) {
     setDownloading(true);
     setDownloadError("");
     setDirectUrl("");
-    let url = mediaUrl(video.path);
+    const url = mediaUrl(video.path);
     try {
-      try {
-        const data = await trackDownload(video.id, {
-          signal: controller.signal,
-        });
-        url = mediaUrl(data.download_url) || url;
-      } catch {
-        /* A metrics failure must not prevent access to the file. */
-      }
+      // The file comes directly from storage; analytics must not delay it.
+      trackDownload(video.id, { signal: controller.signal }).catch(() => {
+        /* Downloads continue when analytics is unavailable. */
+      });
       if (controller.signal.aborted) return;
       if (!url) throw new Error("File unavailable");
       setDirectUrl(url);
@@ -116,7 +112,7 @@ function VideoDetails({ id }) {
   if (resource.loading)
     return (
       <section className="detail-container page-section">
-        <Spinner label="Loading video…" />
+        <Spinner label="Loading video…" slow={resource.slow} />
       </section>
     );
   if (resource.error || !video)

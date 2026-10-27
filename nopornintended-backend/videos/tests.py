@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from uuid import uuid4
 from importlib import import_module
 from types import SimpleNamespace
@@ -9,7 +10,8 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from .duration import duration_seconds
-from .models import Category, Performer, Video, VideoComment, VideoReaction
+from .models import Category, Performer, Video, VideoComment, VideoReaction, VideoDownloadEvent, VideoViewEvent
+from .throttles import TrackingThrottle
 
 
 class VideoAPITests(TestCase):
@@ -251,3 +253,61 @@ class VideoAPITests(TestCase):
         with self.assertNumQueries(1):
             response = self.client.get("/api/videos/")
             self.assertEqual(response.status_code, 200)
+
+
+    def test_view_tracking_counts_once_and_preserves_event_details(self):
+        response = self.client.post(f"{self.url}/view/", HTTP_X_FORWARDED_FOR="2001:db8::1, 192.0.2.1", HTTP_USER_AGENT="x" * 600)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data, {"id": self.video.pk, "views": 1})
+        event = VideoViewEvent.objects.get()
+        self.assertEqual(event.ip_address, "2001:db8::1")
+        self.assertEqual(len(event.user_agent), 500)
+        self.video.refresh_from_db()
+        self.assertEqual(self.video.views_count, 1)
+
+    def test_download_tracking_keeps_the_file_url_and_feedback(self):
+        VideoReaction.objects.create(video=self.video, visitor_id=uuid4(), value=1)
+        response = self.client.post(f"{self.url}/download/")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["download_url"], self.video.video_url)
+        self.assertEqual(response.data["downloads"], 1)
+        self.assertEqual(response.data["video"]["likes_count"], 1)
+        self.assertEqual(VideoDownloadEvent.objects.count(), 1)
+
+    def test_tracking_ignores_malformed_ip_headers(self):
+        for endpoint, model in [("view", VideoViewEvent), ("download", VideoDownloadEvent)]:
+            with self.subTest(endpoint=endpoint):
+                response = self.client.post(f"{self.url}/{endpoint}/", HTTP_X_FORWARDED_FOR="not-an-ip", REMOTE_ADDR="192.0.2.2")
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(model.objects.latest("pk").ip_address, "192.0.2.2")
+                response = self.client.post(f"{self.url}/{endpoint}/", HTTP_X_FORWARDED_FOR="unknown", REMOTE_ADDR="also-invalid")
+                self.assertEqual(response.status_code, 201)
+                self.assertIsNone(model.objects.latest("pk").ip_address)
+
+    def test_tracking_rejects_hidden_or_missing_videos(self):
+        for pk in [self.hidden.pk, 99999]:
+            for endpoint in ["view", "download"]:
+                self.assertEqual(self.client.post(f"/api/videos/{pk}/{endpoint}/").status_code, 404)
+        self.assertEqual(VideoViewEvent.objects.count(), 0)
+        self.assertEqual(VideoDownloadEvent.objects.count(), 0)
+
+    def test_tracking_rate_limit_does_not_block_reading_the_library(self):
+        with patch.object(TrackingThrottle, "rate", "2/minute"):
+            self.assertEqual(self.client.post(f"{self.url}/view/").status_code, 201)
+            self.assertEqual(self.client.post(f"{self.url}/download/").status_code, 201)
+            limited = self.client.post(f"{self.url}/view/")
+            self.assertEqual(limited.status_code, 429)
+            self.assertIn("Retry-After", limited)
+            self.assertEqual(self.client.get("/api/videos/").status_code, 200)
+        self.assertEqual(VideoViewEvent.objects.count(), 1)
+        self.assertEqual(VideoDownloadEvent.objects.count(), 1)
+
+    def test_failed_counter_updates_roll_back_tracking_events(self):
+        for endpoint, model in [("view", VideoViewEvent), ("download", VideoDownloadEvent)]:
+            with self.subTest(endpoint=endpoint):
+                with patch("django.db.models.query.QuerySet.update", side_effect=RuntimeError("Counter update unavailable")):
+                    with self.assertRaises(RuntimeError):
+                        self.client.post(f"{self.url}/{endpoint}/")
+                self.assertEqual(model.objects.count(), 0)
+        self.video.refresh_from_db()
+        self.assertEqual((self.video.views_count, self.video.downloads_count), (0, 0))

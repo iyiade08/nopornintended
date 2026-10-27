@@ -34,6 +34,7 @@ function RelatedVideoList({ videoId, performer }) {
       </h2>
       {resource.loading ? (
         <Spinner
+          slow={resource.slow}
           label={
             performer
               ? `Loading more videos from ${performer.name}…`
