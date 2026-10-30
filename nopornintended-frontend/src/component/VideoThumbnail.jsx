@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { FaPlay } from "react-icons/fa";
 import { loadPreviewFrame, queuePreview } from "../lib/videoPreview";
+import { hostedVideo } from "../lib/hostedVideo";
 
 export default function VideoThumbnail({ thumbnail, source }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [frameState, setFrameState] = useState("idle");
   const containerRef = useRef(null);
   const videoRef = useRef(null);
-  const useVideo = !thumbnail || imageFailed;
+  const hasImage = Boolean(thumbnail) && !imageFailed;
+  const embedded = Boolean(hostedVideo(source));
+  const useVideo = !hasImage && !embedded;
 
   useEffect(() => {
     if (!useVideo || !source) return;
@@ -54,9 +57,8 @@ export default function VideoThumbnail({ thumbnail, source }) {
     };
   }, [source, useVideo]);
 
-  const hasImage = !useVideo;
   const ready = hasImage || frameState === "ready";
-  const unavailable = !source || frameState === "unavailable";
+  const unavailable = embedded || !source || frameState === "unavailable";
   return (
     <div
       ref={containerRef}
@@ -73,7 +75,7 @@ export default function VideoThumbnail({ thumbnail, source }) {
           decoding="async"
           onError={() => setImageFailed(true)}
         />
-      ) : source ? (
+      ) : source && !embedded ? (
         <video
           ref={videoRef}
           className="video-preview"
@@ -92,7 +94,11 @@ export default function VideoThumbnail({ thumbnail, source }) {
             <FaPlay size={13} />
           </span>
           <span>
-            {unavailable ? "Preview unavailable" : "Loading preview…"}
+            {embedded
+              ? "Play video"
+              : unavailable
+                ? "Preview unavailable"
+                : "Loading preview…"}
           </span>
         </div>
       )}

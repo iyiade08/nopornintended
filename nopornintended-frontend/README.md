@@ -45,7 +45,13 @@ python manage.py test --settings=config.test_settings
 - Terms and Privacy pages displaying published plain-text `StaticPage` records with the slugs `terms` and `privacy`.
 - Age confirmation on library, search, saved, and video routes. Policies, contact, and reports remain accessible without entering the video library.
 
-Video views are counted when playback starts. File downloads begin directly from the video's storage URL, while download analytics runs separately; a slow analytics endpoint does not delay the file. Downloads can use a direct-file fallback when storage CORS prevents a browser download.
+For direct files, views are counted when playback starts. File downloads begin directly from the video's storage URL, while download analytics runs separately; a slow analytics endpoint does not delay the file. Downloads can use a direct-file fallback when storage CORS prevents a browser download.
+
+DoodStream embeds are supported for HTTPS `/e/VIDEO_ID` and `/d/VIDEO_ID` links on `playmogo.com` and `doodstream.com` (including their `www` forms). Paste the link, rather than iframe HTML, into Django Admin's **Video URL** field and leave **Video file** empty. No new database field or provider API key is needed. Uploaded thumbnails remain optional; embedded links never load as native-video thumbnail previews. Other provider domains must be reviewed and explicitly added to `src/lib/hostedVideo.js` before they can become iframes.
+
+Hosted players appear in a responsive 16:9 frame and load only after the visitor clicks Play video. This explicit player-start request counts as a view; the site cannot inspect cross-origin playback events or the provider's quality controls. The host supplies its player, ads, and download page. **Download on DoodStream** opens that page in a separate tab and records a download-page click, not proof of a completed file transfer. A separate Open on DoodStream link remains available if embedding is blocked. The provider's standard iframe player is used; its ads may open additional tabs or redirect visitors. The site does not filter or control the provider's ads. Preserve independent file backups: DoodStream's current FAQ says inactive free-account files are removed after 60 days.
+
+In the isolated preview, `/downloads/30` uses the harmless public test clip supplied during setup. Loading its player contacts the external host; the other sample data and submissions remain local.
 
 API requests allow up to 90 seconds for free hosting to wake. After eight seconds, pending library, video, comment, recommendation, and policy loads show a visible waiting message. Requests are canceled when their page becomes obsolete. Submissions are never automatically repeated after a timeout. This handles a cold start more clearly; it does not keep Render awake or remove its hosting limits. Saving a video on the library or search page does not reload the video list.
 

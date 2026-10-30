@@ -48,6 +48,14 @@ for index in range(1, 30):
         for number, value in [(1, 1), (2, 1), (3, -1)]:
             VideoReaction.objects.create(video=video, visitor_id=UUID(int=number), value=value)
         VideoComment.objects.create(video=video, name="Preview reader", body="A sample approved comment for checking the layout.", is_approved=True)
+# User-supplied harmless public clip; its external player loads only on click.
+Video.objects.create(
+    title="Hosted video - public test clip",
+    category=categories[0],
+    description="Harmless public clip for testing the embedded player and host download link. This is an isolated fixture, not a live catalog edit.",
+    video_url="https://playmogo.com/e/yanwrem8jj2b",
+    duration="0:44",
+)
 for slug, title in [("terms", "Terms of Use"), ("privacy", "Privacy Policy")]:
     StaticPage.objects.create(slug=slug, title=title, body="Local preview content only.\n\nThis is a sample page used to verify typography and spacing. The live site displays the content published in Django Admin.")
 print("Frontend QA fixtures ready. This database exists only in memory.", flush=True)

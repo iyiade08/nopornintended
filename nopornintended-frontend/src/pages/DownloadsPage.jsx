@@ -15,6 +15,7 @@ import ContentState from "../component/ContentState";
 import VideoPlayer from "../component/VideoPlayer";
 import { getVideo, trackView, trackDownload } from "../api/api";
 import { buildFileName, formatCount, mediaUrl } from "../lib/media";
+import { hostedVideo } from "../lib/hostedVideo";
 import useResource from "../hooks/useResource";
 import usePageTitle from "../hooks/usePageTitle";
 
@@ -137,6 +138,7 @@ function VideoDetails({ id }) {
       </section>
     );
   const path = mediaUrl(video.path);
+  const host = hostedVideo(path);
   const viewCount = views ?? video.views ?? 0;
   return (
     <div className="page-section">
@@ -176,15 +178,30 @@ function VideoDetails({ id }) {
             )}
             <div className="detail-toolbar">
               <VideoFeedback video={video} />
-              <button
-                className="button"
-                type="button"
-                onClick={download}
-                disabled={downloading || !path}
-              >
-                <FaDownload size={13} aria-hidden="true" />
-                {downloading ? "Downloading…" : "Download"}
-              </button>
+              {host ? (
+                <a
+                  className="button"
+                  href={host.downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    trackDownload(video.id).catch(() => {});
+                  }}
+                >
+                  <FaDownload size={13} aria-hidden="true" />
+                  Download on {host.provider}
+                </a>
+              ) : (
+                <button
+                  className="button"
+                  type="button"
+                  onClick={download}
+                  disabled={downloading || !path}
+                >
+                  <FaDownload size={13} aria-hidden="true" />
+                  {downloading ? "Downloading…" : "Download"}
+                </button>
+              )}
               <button
                 className="button button-secondary"
                 type="button"

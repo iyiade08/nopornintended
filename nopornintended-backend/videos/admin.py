@@ -20,6 +20,15 @@ class PerformerAdmin(admin.ModelAdmin):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "video_url":
+            kwargs["help_text"] = (
+                "Paste a direct video file URL or a DoodStream embed link "
+                "(https://playmogo.com/e/VIDEO_ID). Leave Video file empty when using a URL. "
+                "Embedded videos use the host's player and download page; add a thumbnail separately if wanted."
+            )
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
     list_display = (
         "title",
         "category",
